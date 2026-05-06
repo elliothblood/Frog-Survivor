@@ -1963,14 +1963,19 @@
         bananas.push({
           x: player.x + Math.cos(angle) * 22,
           y: player.y + Math.sin(angle) * 22,
+          originX: player.x,
+          originY: player.y,
           angle,
+          travelAngle: angle,
           radius: 12 * bananaWeapon.size,
           size: bananaWeapon.size,
           damage: bananaWeapon.damage,
           speed: bananaWeapon.speed,
           life: bananaWeapon.duration,
           maxLife: bananaWeapon.duration,
-          curve: (i % 2 === 0 ? 1 : -1) * (2.7 + Math.random() * 0.45),
+          range: 260 + bananaWeapon.speed * 0.24,
+          side: i % 2 === 0 ? 1 : -1,
+          curve: 92 + Math.random() * 34,
           spin: Math.random() * Math.PI * 2,
           hitCooldowns: new Map(),
         });
@@ -2385,16 +2390,20 @@
         const banana = bananas[i];
         banana.life -= dt;
         banana.spin += dt * 10;
-        const age = banana.maxLife - banana.life;
-        const returning = age > banana.maxLife * 0.48;
-        if (returning) {
-          const desired = Math.atan2(player.y - banana.y, player.x - banana.x);
-          banana.angle += clamp(angleDifference(desired, banana.angle), -4.8 * dt, 4.8 * dt);
-        } else {
-          banana.angle += banana.curve * dt;
-        }
-        banana.x += Math.cos(banana.angle) * banana.speed * dt;
-        banana.y += Math.sin(banana.angle) * banana.speed * dt;
+        const t = clamp(1 - banana.life / banana.maxLife, 0, 1);
+        const previous = { x: banana.x, y: banana.y };
+        const dirX = Math.cos(banana.travelAngle);
+        const dirY = Math.sin(banana.travelAngle);
+        const sideX = -dirY * banana.side;
+        const sideY = dirX * banana.side;
+        const away = Math.sin(Math.PI * t) * banana.range;
+        const curve = Math.sin(Math.PI * 2 * t) * banana.curve;
+        const returnPull = t * t;
+        const baseX = banana.originX + (player.x - banana.originX) * returnPull;
+        const baseY = banana.originY + (player.y - banana.originY) * returnPull;
+        banana.x = baseX + dirX * away + sideX * curve;
+        banana.y = baseY + dirY * away + sideY * curve;
+        banana.angle = Math.atan2(banana.y - previous.y, banana.x - previous.x);
 
         for (const [enemyId, cooldown] of banana.hitCooldowns) {
           if (cooldown <= dt) {
@@ -2415,7 +2424,7 @@
           }
         }
 
-        if (banana.life <= 0 || (returning && distanceSq(banana, player) < (player.radius + banana.radius) * (player.radius + banana.radius))) {
+        if (banana.life <= 0 || (t > 0.82 && distanceSq(banana, player) < (player.radius + banana.radius) * (player.radius + banana.radius))) {
           bananas.splice(i, 1);
         }
       }
