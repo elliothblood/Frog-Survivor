@@ -304,6 +304,7 @@
         <div class="pill weapon" id="tonguePill" hidden><small>Tongue</small><span id="tongue">-</span></div>
         <div class="pill weapon" id="puddlePill" hidden><small>Puddle</small><span id="puddle">-</span></div>
         <div class="pill weapon" id="rainPill" hidden><small>Rain</small><span id="rain">-</span></div>
+        <div class="pill weapon" id="bananaPill" hidden><small>Banana</small><span id="banana">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -358,6 +359,7 @@
       tongue: document.querySelector("#tongue"),
       puddle: document.querySelector("#puddle"),
       rain: document.querySelector("#rain"),
+      banana: document.querySelector("#banana"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -369,6 +371,7 @@
       tonguePill: document.querySelector("#tonguePill"),
       puddlePill: document.querySelector("#puddlePill"),
       rainPill: document.querySelector("#rainPill"),
+      bananaPill: document.querySelector("#bananaPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -542,12 +545,25 @@
       timer: 0,
     };
 
+    const bananaWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 30,
+      size: 1,
+      count: 1,
+      cooldown: 1.15,
+      speed: 430,
+      duration: 1.55,
+      timer: 0,
+    };
+
     const enemies = [];
     const projectiles = [];
     const tadpoles = [];
     const tongues = [];
     const puddles = [];
     const raindrops = [];
+    const bananas = [];
     const enemyProjectiles = [];
     const lasers = [];
     const slashes = [];
@@ -1202,6 +1218,57 @@
           rainWeapon.count += 1;
         },
       },
+      {
+        name: "Bananas",
+        text: "Shoot curving boomerang bananas that slice through enemies.",
+        weapon: "banana",
+        unlock: true,
+        available: () => !bananaWeapon.unlocked,
+        apply: () => {
+          bananaWeapon.unlocked = true;
+          bananaWeapon.level = 1;
+          bananaWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Ripe Throw",
+        text: "Banana damage +10.",
+        weapon: "banana",
+        available: () => bananaWeapon.unlocked,
+        apply: () => bananaWeapon.damage += 10,
+      },
+      {
+        name: "Big Bunch",
+        text: "Banana size +18%.",
+        weapon: "banana",
+        available: () => bananaWeapon.unlocked,
+        apply: () => bananaWeapon.size *= 1.18,
+      },
+      {
+        name: "Fast Peel",
+        text: "Bananas fire 18% faster.",
+        weapon: "banana",
+        available: () => bananaWeapon.unlocked,
+        apply: () => bananaWeapon.cooldown = Math.max(0.34, bananaWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Banana Split",
+        text: "Shoot one additional banana per volley.",
+        weapon: "banana",
+        available: () => bananaWeapon.unlocked,
+        apply: () => bananaWeapon.count += 1,
+      },
+      {
+        name: "Wild Bunch",
+        text: "Banana damage +5, size +10%, and one extra banana.",
+        weapon: "banana",
+        available: () => bananaWeapon.unlocked,
+        apply: () => {
+          bananaWeapon.damage += 5;
+          bananaWeapon.size *= 1.1;
+          bananaWeapon.count += 1;
+        },
+      },
     ];
 
     function resize() {
@@ -1286,7 +1353,8 @@
         + (tadpoleWeapon.unlocked ? 1 : 0)
         + (tongueWeapon.unlocked ? 1 : 0)
         + (puddleWeapon.unlocked ? 1 : 0)
-        + (rainWeapon.unlocked ? 1 : 0);
+        + (rainWeapon.unlocked ? 1 : 0)
+        + (bananaWeapon.unlocked ? 1 : 0);
     }
 
     function updateUi() {
@@ -1306,6 +1374,7 @@
       ui.tonguePill.hidden = !tongueWeapon.unlocked;
       ui.puddlePill.hidden = !puddleWeapon.unlocked;
       ui.rainPill.hidden = !rainWeapon.unlocked;
+      ui.bananaPill.hidden = !bananaWeapon.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -1317,6 +1386,7 @@
       ui.tongue.textContent = tongueWeapon.unlocked ? tongueWeapon.level : "-";
       ui.puddle.textContent = puddleWeapon.unlocked ? puddleWeapon.level : "-";
       ui.rain.textContent = rainWeapon.unlocked ? rainWeapon.level : "-";
+      ui.banana.textContent = bananaWeapon.unlocked ? bananaWeapon.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -1879,6 +1949,34 @@
       }
     }
 
+    function fireBananas() {
+      if (!bananaWeapon.unlocked) return;
+      const target = findTarget(650) || randomVisibleEnemy();
+      if (!target) return;
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(0.72, 0.16 * (bananaWeapon.count - 1));
+      for (let i = 0; i < bananaWeapon.count; i += 1) {
+        const offset = bananaWeapon.count === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (bananaWeapon.count - 1);
+        const angle = baseAngle + offset;
+        bananas.push({
+          x: player.x + Math.cos(angle) * 22,
+          y: player.y + Math.sin(angle) * 22,
+          angle,
+          radius: 12 * bananaWeapon.size,
+          size: bananaWeapon.size,
+          damage: bananaWeapon.damage,
+          speed: bananaWeapon.speed,
+          life: bananaWeapon.duration,
+          maxLife: bananaWeapon.duration,
+          curve: (i % 2 === 0 ? 1 : -1) * (2.7 + Math.random() * 0.45),
+          spin: Math.random() * Math.PI * 2,
+          hitCooldowns: new Map(),
+        });
+      }
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -2081,6 +2179,7 @@
             if (upgrade.weapon === "tongue") tongueWeapon.level += 1;
             if (upgrade.weapon === "puddle") puddleWeapon.level += 1;
             if (upgrade.weapon === "rain") rainWeapon.level += 1;
+            if (upgrade.weapon === "banana") bananaWeapon.level += 1;
           }
           ui.levelUp.classList.remove("show");
           if (world.pendingUpgrades > 0) {
@@ -2116,6 +2215,7 @@
       tongueWeapon.timer -= dt;
       puddleWeapon.timer -= dt;
       rainWeapon.timer -= dt;
+      bananaWeapon.timer -= dt;
       player.hurtTimer = Math.max(0, player.hurtTimer - dt);
 
       const move = getMoveVector();
@@ -2207,6 +2307,11 @@
         rainWeapon.timer = rainWeapon.cooldown;
       }
 
+      if (bananaWeapon.unlocked && bananaWeapon.timer <= 0) {
+        fireBananas();
+        bananaWeapon.timer = bananaWeapon.cooldown;
+      }
+
       for (let i = projectiles.length - 1; i >= 0; i -= 1) {
         const arrow = projectiles[i];
         arrow.x += arrow.vx * dt;
@@ -2273,6 +2378,45 @@
         if (drop.life <= 0) {
           splashRain(drop);
           raindrops.splice(i, 1);
+        }
+      }
+
+      for (let i = bananas.length - 1; i >= 0; i -= 1) {
+        const banana = bananas[i];
+        banana.life -= dt;
+        banana.spin += dt * 10;
+        const age = banana.maxLife - banana.life;
+        const returning = age > banana.maxLife * 0.48;
+        if (returning) {
+          const desired = Math.atan2(player.y - banana.y, player.x - banana.x);
+          banana.angle += clamp(angleDifference(desired, banana.angle), -4.8 * dt, 4.8 * dt);
+        } else {
+          banana.angle += banana.curve * dt;
+        }
+        banana.x += Math.cos(banana.angle) * banana.speed * dt;
+        banana.y += Math.sin(banana.angle) * banana.speed * dt;
+
+        for (const [enemyId, cooldown] of banana.hitCooldowns) {
+          if (cooldown <= dt) {
+            banana.hitCooldowns.delete(enemyId);
+          } else {
+            banana.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+
+        for (const enemy of nearbyEnemies(banana.x, banana.y, banana.radius + 34)) {
+          if (enemy.dead || banana.hitCooldowns.has(enemy.id)) continue;
+          const hitRange = banana.radius + enemy.radius;
+          if (distanceSq(banana, enemy) < hitRange * hitRange) {
+            enemy.hp -= banana.damage;
+            banana.hitCooldowns.set(enemy.id, 0.32);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(banana.damage), life: 0.42 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+
+        if (banana.life <= 0 || (returning && distanceSq(banana, player) < (player.radius + banana.radius) * (player.radius + banana.radius))) {
+          bananas.splice(i, 1);
         }
       }
 
@@ -2602,7 +2746,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -2734,12 +2878,23 @@
       rainWeapon.fallTime = 0.45;
       rainWeapon.timer = 0;
 
+      bananaWeapon.unlocked = false;
+      bananaWeapon.level = 0;
+      bananaWeapon.damage = 30;
+      bananaWeapon.size = 1;
+      bananaWeapon.count = 1;
+      bananaWeapon.cooldown = 1.15;
+      bananaWeapon.speed = 430;
+      bananaWeapon.duration = 1.55;
+      bananaWeapon.timer = 0;
+
       enemies.length = 0;
       projectiles.length = 0;
       tadpoles.length = 0;
       tongues.length = 0;
       puddles.length = 0;
       raindrops.length = 0;
+      bananas.length = 0;
       enemyProjectiles.length = 0;
       lasers.length = 0;
       slashes.length = 0;
@@ -3542,6 +3697,38 @@
         ctx.moveTo(0, -14);
         ctx.lineTo(0, 5);
         ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const banana of bananas) {
+        const x = screenX(banana.x);
+        const y = screenY(banana.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(banana.angle + Math.sin(banana.spin) * 0.55);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "#7b5a16";
+        ctx.lineWidth = Math.max(4, banana.radius * 0.62);
+        ctx.beginPath();
+        ctx.moveTo(-banana.radius * 0.9, banana.radius * 0.28);
+        ctx.quadraticCurveTo(0, -banana.radius * 0.95, banana.radius * 1.05, banana.radius * 0.16);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#f4d64d";
+        ctx.lineWidth = Math.max(3, banana.radius * 0.44);
+        ctx.beginPath();
+        ctx.moveTo(-banana.radius * 0.78, banana.radius * 0.18);
+        ctx.quadraticCurveTo(0, -banana.radius * 0.72, banana.radius * 0.85, banana.radius * 0.08);
+        ctx.stroke();
+
+        ctx.fillStyle = "#5b3e12";
+        ctx.beginPath();
+        ctx.arc(-banana.radius * 0.86, banana.radius * 0.25, banana.radius * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(banana.radius * 0.96, banana.radius * 0.12, banana.radius * 0.12, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
