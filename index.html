@@ -1,0 +1,4041 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frog Survivor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101417;
+      color: #f4f2eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(74, 115, 80, 0.28), transparent 30%),
+        linear-gradient(135deg, #0e1d1b 0%, #162c23 55%, #0b1615 100%);
+    }
+
+    body {
+      display: grid;
+      place-items: stretch;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      image-rendering: auto;
+      touch-action: none;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      color: #f4f2eb;
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      min-width: 84px;
+      padding: 8px 11px;
+      border: 1px solid rgba(244, 242, 235, 0.16);
+      border-radius: 8px;
+      background: rgba(10, 13, 14, 0.58);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(8px);
+    }
+
+    .pill[hidden] {
+      display: none;
+    }
+
+    .pill.weapon {
+      min-width: 48px;
+      padding: 5px 7px;
+    }
+
+    .pill small {
+      display: block;
+      margin-bottom: 2px;
+      color: #cad5c2;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .pill.weapon small {
+      font-size: 9px;
+      margin-bottom: 0;
+      letter-spacing: 0.05em;
+    }
+
+    .pill.weapon span {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .help {
+      max-width: min(320px, 48vw);
+      padding: 8px 11px;
+      border-radius: 8px;
+      background: rgba(10, 13, 14, 0.48);
+      color: #dce1d5;
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .xp-wrap {
+      position: absolute;
+      left: max(16px, env(safe-area-inset-left));
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      height: 24px;
+      overflow: hidden;
+      border: 2px solid rgba(244, 242, 235, 0.48);
+      border-radius: 8px;
+      background: rgba(5, 9, 10, 0.72);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+    }
+
+    .xp-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #3acb7d 0%, #76d86c 44%, #e9ce5d 100%);
+      box-shadow: 0 0 18px rgba(118, 216, 108, 0.5);
+      transition: width 120ms linear;
+    }
+
+    .xp-label {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #f8faef;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-shadow: 0 1px 4px #000;
+    }
+
+    .level-up {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(5, 8, 9, 0.66);
+      pointer-events: auto;
+    }
+
+    .level-up.show {
+      display: flex;
+    }
+
+    .upgrade-panel {
+      width: min(920px, 100%);
+      padding: 20px;
+      border: 1px solid rgba(244, 242, 235, 0.24);
+      border-radius: 8px;
+      background: rgba(20, 27, 26, 0.96);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+    }
+
+    .upgrade-panel h1 {
+      margin: 0 0 4px;
+      font-size: clamp(28px, 5vw, 48px);
+      letter-spacing: 0;
+    }
+
+    .upgrade-panel p {
+      margin: 0 0 18px;
+      color: #cfd8c8;
+    }
+
+    .upgrade-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .upgrade {
+      min-height: 184px;
+      padding: 16px;
+      border: 1px solid rgba(244, 242, 235, 0.18);
+      border-radius: 8px;
+      background: #202b27;
+      color: #f4f2eb;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
+    }
+
+    .upgrade:hover,
+    .upgrade:focus-visible {
+      outline: 0;
+      transform: translateY(-3px);
+      border-color: #e9ce5d;
+      background: #263831;
+    }
+
+    .upgrade strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 20px;
+    }
+
+    .upgrade span {
+      color: #d3ddcf;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .touch-stick {
+      position: fixed;
+      left: 24px;
+      bottom: 62px;
+      display: none;
+      width: 112px;
+      height: 112px;
+      border: 1px solid rgba(244, 242, 235, 0.15);
+      border-radius: 50%;
+      background: rgba(10, 13, 14, 0.36);
+      pointer-events: none;
+    }
+
+    .touch-stick::after {
+      content: "";
+      position: absolute;
+      left: 38px;
+      top: 38px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(244, 242, 235, 0.7);
+      transform: translate(var(--stick-x, 0), var(--stick-y, 0));
+    }
+
+    @media (max-width: 720px) {
+      .top-bar {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+      }
+
+      .help {
+        display: none;
+      }
+
+      .pill {
+        min-width: 72px;
+        padding: 7px 9px;
+      }
+
+      .pill.weapon {
+        min-width: 44px;
+        padding: 5px 6px;
+      }
+
+      .upgrade-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .upgrade {
+        min-height: 126px;
+      }
+
+      .touch-stick {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Frog Survivor game"></canvas>
+
+  <div class="hud">
+    <div class="top-bar">
+      <div class="stats">
+        <div class="pill"><small>Level</small><span id="level">1</span></div>
+        <div class="pill"><small>Health</small><span id="health">100</span></div>
+        <div class="pill"><small>Kills</small><span id="kills">0</span></div>
+        <div class="pill weapon" id="weaponPill" hidden><small>Bow</small><span id="weapon">-</span></div>
+        <div class="pill weapon" id="wandPill" hidden><small>Wand</small><span id="wand">-</span></div>
+        <div class="pill weapon" id="swordPill" hidden><small>Sword</small><span id="sword">-</span></div>
+        <div class="pill weapon" id="beltPill" hidden><small>Belt</small><span id="belt">-</span></div>
+        <div class="pill weapon" id="orbPill" hidden><small>Orb</small><span id="orb">-</span></div>
+        <div class="pill weapon" id="ringPill" hidden><small>Ring</small><span id="ring">-</span></div>
+        <div class="pill weapon" id="skyPill" hidden><small>Sky</small><span id="sky">-</span></div>
+        <div class="pill weapon" id="minePill" hidden><small>Mine</small><span id="mine">-</span></div>
+        <div class="pill weapon" id="tadpolePill" hidden><small>Tad</small><span id="tadpole">-</span></div>
+        <div class="pill weapon" id="tonguePill" hidden><small>Tongue</small><span id="tongue">-</span></div>
+        <div class="pill weapon" id="puddlePill" hidden><small>Puddle</small><span id="puddle">-</span></div>
+        <div class="pill weapon" id="rainPill" hidden><small>Rain</small><span id="rain">-</span></div>
+      </div>
+      <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
+    </div>
+
+    <div class="xp-wrap">
+      <div class="xp-fill" id="xpFill"></div>
+      <div class="xp-label" id="xpLabel">EXP 0 / 8</div>
+    </div>
+
+    <div class="touch-stick" id="touchStick"></div>
+  </div>
+
+  <div class="level-up" id="levelUp">
+    <div class="upgrade-panel">
+      <h1 id="upgradeTitle">Choose an upgrade</h1>
+      <p id="upgradeSubtitle">The world pauses while you sharpen the build.</p>
+      <div class="upgrade-grid" id="upgradeGrid"></div>
+    </div>
+  </div>
+
+  <div class="level-up" id="gameOver">
+    <div class="upgrade-panel">
+      <h1>Run ended</h1>
+      <p id="runSummary">You were overrun.</p>
+      <div class="upgrade-grid">
+        <button class="upgrade" id="restart" type="button">
+          <strong>Try again</strong>
+          <span>Start a fresh run with the basic crossbow.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.querySelector("#game");
+    const ctx = canvas.getContext("2d");
+
+    const ui = {
+      level: document.querySelector("#level"),
+      health: document.querySelector("#health"),
+      kills: document.querySelector("#kills"),
+      weapon: document.querySelector("#weapon"),
+      weaponPill: document.querySelector("#weaponPill"),
+      wand: document.querySelector("#wand"),
+      sword: document.querySelector("#sword"),
+      belt: document.querySelector("#belt"),
+      orb: document.querySelector("#orb"),
+      ring: document.querySelector("#ring"),
+      sky: document.querySelector("#sky"),
+      mine: document.querySelector("#mine"),
+      tadpole: document.querySelector("#tadpole"),
+      tongue: document.querySelector("#tongue"),
+      puddle: document.querySelector("#puddle"),
+      rain: document.querySelector("#rain"),
+      wandPill: document.querySelector("#wandPill"),
+      swordPill: document.querySelector("#swordPill"),
+      beltPill: document.querySelector("#beltPill"),
+      orbPill: document.querySelector("#orbPill"),
+      ringPill: document.querySelector("#ringPill"),
+      skyPill: document.querySelector("#skyPill"),
+      minePill: document.querySelector("#minePill"),
+      tadpolePill: document.querySelector("#tadpolePill"),
+      tonguePill: document.querySelector("#tonguePill"),
+      puddlePill: document.querySelector("#puddlePill"),
+      rainPill: document.querySelector("#rainPill"),
+      xpFill: document.querySelector("#xpFill"),
+      xpLabel: document.querySelector("#xpLabel"),
+      levelUp: document.querySelector("#levelUp"),
+      upgradeTitle: document.querySelector("#upgradeTitle"),
+      upgradeSubtitle: document.querySelector("#upgradeSubtitle"),
+      upgradeGrid: document.querySelector("#upgradeGrid"),
+      touchStick: document.querySelector("#touchStick"),
+      gameOver: document.querySelector("#gameOver"),
+      runSummary: document.querySelector("#runSummary"),
+      restart: document.querySelector("#restart"),
+    };
+
+    const world = {
+      width: 3600,
+      height: 3600,
+      time: 0,
+      paused: false,
+      ended: false,
+      spawnTimer: 0,
+      spawnEvery: 0.9,
+      bossTimer: 55,
+      antTimer: 34,
+      heartTimer: 7,
+      cameraX: 0,
+      cameraY: 0,
+      pendingUpgrades: 0,
+    };
+
+    const player = {
+      x: world.width / 2,
+      y: world.height / 2,
+      radius: 17,
+      speed: 245,
+      hp: 100,
+      maxHp: 100,
+      hurtTimer: 0,
+      level: 1,
+      xp: 0,
+      xpNeeded: 8,
+      kills: 0,
+    };
+
+    const crossbow = {
+      unlocked: false,
+      level: 0,
+      damage: 22,
+      size: 1,
+      projectileCount: 1,
+      cooldown: 0.82,
+      projectileSpeed: 620,
+      range: 620,
+      pierce: 0,
+      timer: 0,
+    };
+
+    const wand = {
+      unlocked: false,
+      level: 0,
+      damage: 11,
+      cooldown: 0.46,
+      range: 500,
+      ricochet: 0,
+      timer: 0,
+    };
+
+    const sword = {
+      unlocked: false,
+      level: 0,
+      damage: 44,
+      cooldown: 1.1,
+      range: 68,
+      arc: Math.PI * 0.48,
+      slashCount: 1,
+      timer: 0,
+    };
+
+    const asteroidBelt = {
+      unlocked: false,
+      level: 0,
+      damage: 18,
+      size: 13,
+      count: 2,
+      duration: 3.4,
+      cooldown: 1.35,
+      timer: 0,
+      orbitRadius: 82,
+      orbitSpeed: 2.7,
+    };
+
+    const lightningOrb = {
+      unlocked: false,
+      level: 0,
+      damage: 58,
+      size: 28,
+      speed: 105,
+      count: 1,
+      timer: 0,
+    };
+
+    const energyRing = {
+      unlocked: false,
+      level: 0,
+      damage: 14,
+      radius: 138,
+      tickRate: 0.65,
+      hitCooldowns: new Map(),
+    };
+
+    const skyLaser = {
+      unlocked: false,
+      level: 0,
+      damage: 9,
+      count: 1,
+      tickRate: 0.22,
+    };
+
+    const landMine = {
+      unlocked: false,
+      level: 0,
+      damage: 70,
+      size: 18,
+      count: 2,
+      cooldown: 4.2,
+      timer: 0,
+    };
+
+    const tadpoleWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 24,
+      speed: 330,
+      cooldown: 1.05,
+      size: 1,
+      count: 1,
+      splashRadius: 64,
+      timer: 0,
+    };
+
+    const tongueWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 10,
+      duration: 3.2,
+      count: 1,
+      cooldown: 1.35,
+      tickRate: 0.28,
+      width: 10,
+      timer: 0,
+    };
+
+    const puddleWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 8,
+      radius: 54,
+      duration: 5.8,
+      slow: 0.22,
+      tickRate: 0.5,
+      dropEvery: 0.85,
+      timer: 0,
+    };
+
+    const rainWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 16,
+      splashRadius: 58,
+      count: 3,
+      cooldown: 1.6,
+      fallTime: 0.45,
+      timer: 0,
+    };
+
+    const enemies = [];
+    const projectiles = [];
+    const tadpoles = [];
+    const tongues = [];
+    const puddles = [];
+    const raindrops = [];
+    const enemyProjectiles = [];
+    const lasers = [];
+    const slashes = [];
+    const asteroids = [];
+    const lightningOrbs = [];
+    const skyLasers = [];
+    const mines = [];
+    const explosions = [];
+    const gems = [];
+    const hearts = [];
+    const floatText = [];
+    const keys = new Set();
+    let nextEnemyId = 1;
+    const enemyById = new Map();
+    const spatial = {
+      cellSize: 180,
+      cells: new Map(),
+    };
+
+    const pointer = {
+      active: false,
+      id: null,
+      startX: 0,
+      startY: 0,
+      dx: 0,
+      dy: 0,
+    };
+
+    const upgradePool = [
+      {
+        name: "Crossbow",
+        text: "Start with a steady bow that fires moderate-damage arrows.",
+        weapon: "crossbow",
+        unlock: true,
+        available: () => !crossbow.unlocked,
+        apply: () => {
+          crossbow.unlocked = true;
+          crossbow.level = 1;
+          crossbow.timer = 0;
+        },
+      },
+      {
+        name: "Sharpened Bolts",
+        text: "Crossbow damage +10.",
+        weapon: "crossbow",
+        apply: () => crossbow.damage += 10,
+      },
+      {
+        name: "Broadhead Arrows",
+        text: "Arrow size +25% and damage +4.",
+        weapon: "crossbow",
+        apply: () => {
+          crossbow.size += 0.25;
+          crossbow.damage += 4;
+        },
+      },
+      {
+        name: "Twin Shot",
+        text: "Fire one additional arrow per volley.",
+        weapon: "crossbow",
+        apply: () => crossbow.projectileCount += 1,
+      },
+      {
+        name: "Quick Draw",
+        text: "Crossbow fires 18% faster.",
+        weapon: "crossbow",
+        apply: () => crossbow.cooldown = Math.max(0.22, crossbow.cooldown * 0.82),
+      },
+      {
+        name: "Feathered Shafts",
+        text: "Projectile speed +22% and range +80.",
+        weapon: "crossbow",
+        apply: () => {
+          crossbow.projectileSpeed *= 1.22;
+          crossbow.range += 80;
+        },
+      },
+      {
+        name: "Heavy Limbs",
+        text: "Damage +8, size +15%, firing speed +8%.",
+        weapon: "crossbow",
+        apply: () => {
+          crossbow.damage += 8;
+          crossbow.size += 0.15;
+          crossbow.cooldown = Math.max(0.22, crossbow.cooldown * 0.92);
+        },
+      },
+      {
+        name: "Repeater Stock",
+        text: "Fire 12% faster and arrows fly 15% faster.",
+        weapon: "crossbow",
+        apply: () => {
+          crossbow.cooldown = Math.max(0.22, crossbow.cooldown * 0.88);
+          crossbow.projectileSpeed *= 1.15;
+        },
+      },
+      {
+        name: "Barbed Bolts",
+        text: "Crossbow arrows pierce one additional enemy.",
+        weapon: "crossbow",
+        apply: () => crossbow.pierce += 1,
+      },
+      {
+        name: "Magic Wand",
+        text: "Gain a wand that rapidly shoots low-damage lasers.",
+        weapon: "wand",
+        unlock: true,
+        available: () => !wand.unlocked,
+        apply: () => {
+          wand.unlocked = true;
+          wand.level = 1;
+          wand.timer = 0;
+        },
+      },
+      {
+        name: "Bright Focus",
+        text: "Magic wand laser damage +5.",
+        weapon: "wand",
+        available: () => wand.unlocked,
+        apply: () => wand.damage += 5,
+      },
+      {
+        name: "Fast Casting",
+        text: "Magic wand fires 20% faster.",
+        weapon: "wand",
+        available: () => wand.unlocked,
+        apply: () => wand.cooldown = Math.max(0.16, wand.cooldown * 0.8),
+      },
+      {
+        name: "Chain Sparks",
+        text: "Wand lasers ricochet to one additional enemy.",
+        weapon: "wand",
+        available: () => wand.unlocked,
+        apply: () => wand.ricochet += 1,
+      },
+      {
+        name: "Prismatic Casting",
+        text: "Wand damage +3, fire rate +10%, and ricochet +1.",
+        weapon: "wand",
+        available: () => wand.unlocked,
+        apply: () => {
+          wand.damage += 3;
+          wand.cooldown = Math.max(0.16, wand.cooldown * 0.9);
+          wand.ricochet += 1;
+        },
+      },
+      {
+        name: "Sword",
+        text: "Gain a close-range slash that hits hard around you.",
+        weapon: "sword",
+        unlock: true,
+        available: () => !sword.unlocked,
+        apply: () => {
+          sword.unlocked = true;
+          sword.level = 1;
+          sword.timer = 0;
+        },
+      },
+      {
+        name: "Honed Edge",
+        text: "Sword damage +14.",
+        weapon: "sword",
+        available: () => sword.unlocked,
+        apply: () => sword.damage += 14,
+      },
+      {
+        name: "Longblade",
+        text: "Sword slash size +16%.",
+        weapon: "sword",
+        available: () => sword.unlocked,
+        apply: () => {
+          sword.range += 11;
+          sword.arc = Math.min(Math.PI * 0.9, sword.arc + 0.08);
+        },
+      },
+      {
+        name: "Sword Flurry",
+        text: "Sword slashes 18% faster.",
+        weapon: "sword",
+        available: () => sword.unlocked,
+        apply: () => sword.cooldown = Math.max(0.38, sword.cooldown * 0.82),
+      },
+      {
+        name: "Dancing Steel",
+        text: "Sword makes one additional slash.",
+        weapon: "sword",
+        available: () => sword.unlocked,
+        apply: () => sword.slashCount += 1,
+      },
+      {
+        name: "Cleaving Tempo",
+        text: "Sword damage +8, size +12%, and fire rate +10%.",
+        weapon: "sword",
+        available: () => sword.unlocked,
+        apply: () => {
+          sword.damage += 8;
+          sword.range += 7;
+          sword.arc = Math.min(Math.PI * 0.9, sword.arc + 0.05);
+          sword.cooldown = Math.max(0.38, sword.cooldown * 0.9);
+        },
+      },
+      {
+        name: "Asteroid Belt",
+        text: "Gain orbiting asteroids that damage enemies they hit.",
+        weapon: "asteroid",
+        unlock: true,
+        available: () => !asteroidBelt.unlocked,
+        apply: () => {
+          asteroidBelt.unlocked = true;
+          asteroidBelt.level = 1;
+          asteroidBelt.timer = 0;
+        },
+      },
+      {
+        name: "Meteorite Core",
+        text: "Asteroid damage +8.",
+        weapon: "asteroid",
+        available: () => asteroidBelt.unlocked,
+        apply: () => asteroidBelt.damage += 8,
+      },
+      {
+        name: "Wider Orbit",
+        text: "Asteroid size +20%.",
+        weapon: "asteroid",
+        available: () => asteroidBelt.unlocked,
+        apply: () => asteroidBelt.size *= 1.2,
+      },
+      {
+        name: "Second Moon",
+        text: "Create one additional asteroid.",
+        weapon: "asteroid",
+        available: () => asteroidBelt.unlocked,
+        apply: () => asteroidBelt.count += 1,
+      },
+      {
+        name: "Stable Gravity",
+        text: "Asteroids last 1.4 seconds longer.",
+        weapon: "asteroid",
+        available: () => asteroidBelt.unlocked,
+        apply: () => asteroidBelt.duration += 1.4,
+      },
+      {
+        name: "Dense Belt",
+        text: "Asteroid size +12%, damage +5, and duration +0.8s.",
+        weapon: "asteroid",
+        available: () => asteroidBelt.unlocked,
+        apply: () => {
+          asteroidBelt.size *= 1.12;
+          asteroidBelt.damage += 5;
+          asteroidBelt.duration += 0.8;
+        },
+      },
+      {
+        name: "Lightning Orb",
+        text: "Gain a big yellow orb that crosses the screen and shocks enemies.",
+        weapon: "lightning",
+        unlock: true,
+        available: () => !lightningOrb.unlocked,
+        apply: () => {
+          lightningOrb.unlocked = true;
+          lightningOrb.level = 1;
+          syncLightningOrbs(1);
+          lightningOrb.timer = 0;
+        },
+      },
+      {
+        name: "Charged Core",
+        text: "Lightning orb damage +18.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => lightningOrb.damage += 18,
+      },
+      {
+        name: "Storm Swell",
+        text: "Lightning orb size +18%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => lightningOrb.size *= 1.18,
+      },
+      {
+        name: "Tailwind Charge",
+        text: "Lightning orb projectile speed +22%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => lightningOrb.speed *= 1.22,
+      },
+      {
+        name: "Storm Sprint",
+        text: "Lightning orb projectile speed +35%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => lightningOrb.speed *= 1.35,
+      },
+      {
+        name: "Twin Orbs",
+        text: "Add one additional lightning orb.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => syncLightningOrbs(lightningOrb.count + 1),
+      },
+      {
+        name: "Orb Swarm",
+        text: "Add two lightning orbs and increase speed +10%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => {
+          lightningOrb.speed *= 1.1;
+          syncLightningOrbs(lightningOrb.count + 2);
+        },
+      },
+      {
+        name: "Static Overload",
+        text: "Lightning orb damage +12 and size +8%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => {
+          lightningOrb.damage += 12;
+          lightningOrb.size *= 1.08;
+        },
+      },
+      {
+        name: "Thunderhead",
+        text: "Lightning orb damage +10, size +10%, and speed +10%.",
+        weapon: "lightning",
+        available: () => lightningOrb.unlocked,
+        apply: () => {
+          lightningOrb.damage += 10;
+          lightningOrb.size *= 1.1;
+          lightningOrb.speed *= 1.1;
+        },
+      },
+      {
+        name: "Energy Ring",
+        text: "Gain a large ring that damages enemies inside it.",
+        weapon: "ring",
+        unlock: true,
+        available: () => !energyRing.unlocked,
+        apply: () => {
+          energyRing.unlocked = true;
+          energyRing.level = 1;
+          energyRing.hitCooldowns.clear();
+        },
+      },
+      {
+        name: "Expanding Field",
+        text: "Energy ring size +18%.",
+        weapon: "ring",
+        available: () => energyRing.unlocked,
+        apply: () => energyRing.radius *= 1.18,
+      },
+      {
+        name: "Charged Boundary",
+        text: "Energy ring damage +8.",
+        weapon: "ring",
+        available: () => energyRing.unlocked,
+        apply: () => energyRing.damage += 8,
+      },
+      {
+        name: "Widened Current",
+        text: "Energy ring size +10% and damage +4.",
+        weapon: "ring",
+        available: () => energyRing.unlocked,
+        apply: () => {
+          energyRing.radius *= 1.1;
+          energyRing.damage += 4;
+        },
+      },
+      {
+        name: "Sky Laser",
+        text: "Gain a beam from above that burns one random enemy until it dies.",
+        weapon: "sky",
+        unlock: true,
+        available: () => !skyLaser.unlocked,
+        apply: () => {
+          skyLaser.unlocked = true;
+          skyLaser.level = 1;
+          syncSkyLasers();
+        },
+      },
+      {
+        name: "Focused Sunbeam",
+        text: "Sky laser damage +5.",
+        weapon: "sky",
+        available: () => skyLaser.unlocked,
+        apply: () => skyLaser.damage += 5,
+      },
+      {
+        name: "Split the Sky",
+        text: "Create one additional sky laser.",
+        weapon: "sky",
+        available: () => skyLaser.unlocked,
+        apply: () => {
+          skyLaser.count += 1;
+          syncSkyLasers();
+        },
+      },
+      {
+        name: "Solar Array",
+        text: "Sky laser damage +3 and one additional laser.",
+        weapon: "sky",
+        available: () => skyLaser.unlocked,
+        apply: () => {
+          skyLaser.damage += 3;
+          skyLaser.count += 1;
+          syncSkyLasers();
+        },
+      },
+      {
+        name: "Land Mines",
+        text: "Drop grey mines around the swamp that explode when enemies touch them.",
+        weapon: "mine",
+        unlock: true,
+        available: () => !landMine.unlocked,
+        apply: () => {
+          landMine.unlocked = true;
+          landMine.level = 1;
+          landMine.timer = 0;
+        },
+      },
+      {
+        name: "Packed Powder",
+        text: "Land mine damage +22.",
+        weapon: "mine",
+        available: () => landMine.unlocked,
+        apply: () => landMine.damage += 22,
+      },
+      {
+        name: "Wide Blast",
+        text: "Land mine size +18%.",
+        weapon: "mine",
+        available: () => landMine.unlocked,
+        apply: () => landMine.size *= 1.18,
+      },
+      {
+        name: "Minefield",
+        text: "Drop one additional land mine per wave.",
+        weapon: "mine",
+        available: () => landMine.unlocked,
+        apply: () => landMine.count += 1,
+      },
+      {
+        name: "Heavy Charges",
+        text: "Land mine damage +12, size +10%, and one extra mine.",
+        weapon: "mine",
+        available: () => landMine.unlocked,
+        apply: () => {
+          landMine.damage += 12;
+          landMine.size *= 1.1;
+          landMine.count += 1;
+        },
+      },
+      {
+        name: "Tadpoles",
+        text: "Shoot tadpoles that seek random enemies and splash on impact.",
+        weapon: "tadpole",
+        unlock: true,
+        available: () => !tadpoleWeapon.unlocked,
+        apply: () => {
+          tadpoleWeapon.unlocked = true;
+          tadpoleWeapon.level = 1;
+          tadpoleWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Bigger Splash",
+        text: "Tadpole splash size +18%.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => tadpoleWeapon.splashRadius *= 1.18,
+      },
+      {
+        name: "Hungry Tadpoles",
+        text: "Tadpole damage +9.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => tadpoleWeapon.damage += 9,
+      },
+      {
+        name: "Swift Swimmers",
+        text: "Tadpole projectile speed +24%.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => tadpoleWeapon.speed *= 1.24,
+      },
+      {
+        name: "Faster Spawning",
+        text: "Tadpoles fire 20% faster.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => tadpoleWeapon.cooldown = Math.max(0.34, tadpoleWeapon.cooldown * 0.8),
+      },
+      {
+        name: "Tadpole Pair",
+        text: "Shoot one additional tadpole per volley.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => tadpoleWeapon.count += 1,
+      },
+      {
+        name: "Pond School",
+        text: "Tadpole damage +5, speed +12%, and one extra tadpole.",
+        weapon: "tadpole",
+        available: () => tadpoleWeapon.unlocked,
+        apply: () => {
+          tadpoleWeapon.damage += 5;
+          tadpoleWeapon.speed *= 1.12;
+          tadpoleWeapon.count += 1;
+        },
+      },
+      {
+        name: "Frog Tongue",
+        text: "Latch a thick red tongue onto an enemy, damaging it and anything touching the line.",
+        weapon: "tongue",
+        unlock: true,
+        available: () => !tongueWeapon.unlocked,
+        apply: () => {
+          tongueWeapon.unlocked = true;
+          tongueWeapon.level = 1;
+          tongueWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Sticky Snap",
+        text: "Frog tongue damage +5.",
+        weapon: "tongue",
+        available: () => tongueWeapon.unlocked,
+        apply: () => tongueWeapon.damage += 5,
+      },
+      {
+        name: "Longer Latch",
+        text: "Frog tongues last 1 second longer.",
+        weapon: "tongue",
+        available: () => tongueWeapon.unlocked,
+        apply: () => tongueWeapon.duration += 1,
+      },
+      {
+        name: "Forked Tongue",
+        text: "Create one additional frog tongue.",
+        weapon: "tongue",
+        available: () => tongueWeapon.unlocked,
+        apply: () => tongueWeapon.count += 1,
+      },
+      {
+        name: "Crimson Grip",
+        text: "Frog tongue damage +3 and duration +0.7 seconds.",
+        weapon: "tongue",
+        available: () => tongueWeapon.unlocked,
+        apply: () => {
+          tongueWeapon.damage += 3;
+          tongueWeapon.duration += 0.7;
+        },
+      },
+      {
+        name: "Puddles",
+        text: "Leave damaging water puddles behind while moving that slightly slow enemies.",
+        weapon: "puddle",
+        unlock: true,
+        available: () => !puddleWeapon.unlocked,
+        apply: () => {
+          puddleWeapon.unlocked = true;
+          puddleWeapon.level = 1;
+          puddleWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Murky Water",
+        text: "Puddle damage +4.",
+        weapon: "puddle",
+        available: () => puddleWeapon.unlocked,
+        apply: () => puddleWeapon.damage += 4,
+      },
+      {
+        name: "Wider Puddles",
+        text: "Puddle size +18%.",
+        weapon: "puddle",
+        available: () => puddleWeapon.unlocked,
+        apply: () => puddleWeapon.radius *= 1.18,
+      },
+      {
+        name: "Lasting Pools",
+        text: "Puddles last 1.6 seconds longer.",
+        weapon: "puddle",
+        available: () => puddleWeapon.unlocked,
+        apply: () => puddleWeapon.duration += 1.6,
+      },
+      {
+        name: "Sticky Silt",
+        text: "Puddles slow enemies more.",
+        weapon: "puddle",
+        available: () => puddleWeapon.unlocked,
+        apply: () => puddleWeapon.slow = Math.min(0.62, puddleWeapon.slow + 0.08),
+      },
+      {
+        name: "Bog Trail",
+        text: "Puddle damage +3, size +10%, and slow +5%.",
+        weapon: "puddle",
+        available: () => puddleWeapon.unlocked,
+        apply: () => {
+          puddleWeapon.damage += 3;
+          puddleWeapon.radius *= 1.1;
+          puddleWeapon.slow = Math.min(0.62, puddleWeapon.slow + 0.05);
+        },
+      },
+      {
+        name: "Rain",
+        text: "Drop raindrops onto enemies around the screen, splashing nearby enemies.",
+        weapon: "rain",
+        unlock: true,
+        available: () => !rainWeapon.unlocked,
+        apply: () => {
+          rainWeapon.unlocked = true;
+          rainWeapon.level = 1;
+          rainWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Heavy Rain",
+        text: "Rain damage +6.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => rainWeapon.damage += 6,
+      },
+      {
+        name: "Wider Splash",
+        text: "Rain splash size +18%.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => rainWeapon.splashRadius *= 1.18,
+      },
+      {
+        name: "Downpour",
+        text: "Drop one additional raindrop per storm.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => rainWeapon.count += 1,
+      },
+      {
+        name: "Fast Clouds",
+        text: "Rain falls 18% more often.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => rainWeapon.cooldown = Math.max(0.45, rainWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Storm Front",
+        text: "Rain damage +3, splash size +10%, and one extra raindrop.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => {
+          rainWeapon.damage += 3;
+          rainWeapon.splashRadius *= 1.1;
+          rainWeapon.count += 1;
+        },
+      },
+    ];
+
+    function resize() {
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function distanceSq(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return dx * dx + dy * dy;
+    }
+
+    function distanceToSegmentSq(point, a, b) {
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const lengthSq = abx * abx + aby * aby || 1;
+      const t = clamp(((point.x - a.x) * abx + (point.y - a.y) * aby) / lengthSq, 0, 1);
+      const x = a.x + abx * t;
+      const y = a.y + aby * t;
+      const dx = point.x - x;
+      const dy = point.y - y;
+      return dx * dx + dy * dy;
+    }
+
+    function rebuildSpatialGrid() {
+      spatial.cells.clear();
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const cx = Math.floor(enemy.x / spatial.cellSize);
+        const cy = Math.floor(enemy.y / spatial.cellSize);
+        const key = `${cx},${cy}`;
+        let cell = spatial.cells.get(key);
+        if (!cell) {
+          cell = [];
+          spatial.cells.set(key, cell);
+        }
+        cell.push(enemy);
+      }
+    }
+
+    function nearbyEnemies(x, y, range) {
+      const minX = Math.floor((x - range) / spatial.cellSize);
+      const maxX = Math.floor((x + range) / spatial.cellSize);
+      const minY = Math.floor((y - range) / spatial.cellSize);
+      const maxY = Math.floor((y + range) / spatial.cellSize);
+      const found = [];
+      for (let cy = minY; cy <= maxY; cy += 1) {
+        for (let cx = minX; cx <= maxX; cx += 1) {
+          const cell = spatial.cells.get(`${cx},${cy}`);
+          if (cell) found.push(...cell);
+        }
+      }
+      return found;
+    }
+
+    function angleDifference(a, b) {
+      return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+    }
+
+    function ownedWeaponCount() {
+      return (crossbow.unlocked ? 1 : 0)
+        + (wand.unlocked ? 1 : 0)
+        + (sword.unlocked ? 1 : 0)
+        + (asteroidBelt.unlocked ? 1 : 0)
+        + (lightningOrb.unlocked ? 1 : 0)
+        + (energyRing.unlocked ? 1 : 0)
+        + (skyLaser.unlocked ? 1 : 0)
+        + (landMine.unlocked ? 1 : 0)
+        + (tadpoleWeapon.unlocked ? 1 : 0)
+        + (tongueWeapon.unlocked ? 1 : 0)
+        + (puddleWeapon.unlocked ? 1 : 0)
+        + (rainWeapon.unlocked ? 1 : 0);
+    }
+
+    function updateUi() {
+      ui.level.textContent = player.level;
+      ui.health.textContent = Math.max(0, Math.ceil(player.hp));
+      ui.kills.textContent = player.kills;
+      ui.weaponPill.hidden = !crossbow.unlocked;
+      ui.weapon.textContent = crossbow.unlocked ? crossbow.level : "-";
+      ui.wandPill.hidden = !wand.unlocked;
+      ui.swordPill.hidden = !sword.unlocked;
+      ui.beltPill.hidden = !asteroidBelt.unlocked;
+      ui.orbPill.hidden = !lightningOrb.unlocked;
+      ui.ringPill.hidden = !energyRing.unlocked;
+      ui.skyPill.hidden = !skyLaser.unlocked;
+      ui.minePill.hidden = !landMine.unlocked;
+      ui.tadpolePill.hidden = !tadpoleWeapon.unlocked;
+      ui.tonguePill.hidden = !tongueWeapon.unlocked;
+      ui.puddlePill.hidden = !puddleWeapon.unlocked;
+      ui.rainPill.hidden = !rainWeapon.unlocked;
+      ui.wand.textContent = wand.unlocked ? wand.level : "-";
+      ui.sword.textContent = sword.unlocked ? sword.level : "-";
+      ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
+      ui.orb.textContent = lightningOrb.unlocked ? lightningOrb.level : "-";
+      ui.ring.textContent = energyRing.unlocked ? energyRing.level : "-";
+      ui.sky.textContent = skyLaser.unlocked ? skyLaser.level : "-";
+      ui.mine.textContent = landMine.unlocked ? landMine.level : "-";
+      ui.tadpole.textContent = tadpoleWeapon.unlocked ? tadpoleWeapon.level : "-";
+      ui.tongue.textContent = tongueWeapon.unlocked ? tongueWeapon.level : "-";
+      ui.puddle.textContent = puddleWeapon.unlocked ? puddleWeapon.level : "-";
+      ui.rain.textContent = rainWeapon.unlocked ? rainWeapon.level : "-";
+      ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
+      ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
+    }
+
+    function randomEdgePosition() {
+      const margin = 90;
+      const screenW = window.innerWidth;
+      const screenH = window.innerHeight;
+      const side = Math.floor(Math.random() * 4);
+      const minX = world.cameraX - margin;
+      const maxX = world.cameraX + screenW + margin;
+      const minY = world.cameraY - margin;
+      const maxY = world.cameraY + screenH + margin;
+
+      if (side === 0) return { x: clamp(minX, 0, world.width), y: clamp(minY + Math.random() * (screenH + margin * 2), 0, world.height) };
+      if (side === 1) return { x: clamp(maxX, 0, world.width), y: clamp(minY + Math.random() * (screenH + margin * 2), 0, world.height) };
+      if (side === 2) return { x: clamp(minX + Math.random() * (screenW + margin * 2), 0, world.width), y: clamp(minY, 0, world.height) };
+      return { x: clamp(minX + Math.random() * (screenW + margin * 2), 0, world.width), y: clamp(maxY, 0, world.height) };
+    }
+
+    function randomScreenPosition(padding = 80) {
+      return {
+        x: clamp(world.cameraX + padding + Math.random() * Math.max(1, window.innerWidth - padding * 2), padding, world.width - padding),
+        y: clamp(world.cameraY + padding + Math.random() * Math.max(1, window.innerHeight - padding * 2), padding, world.height - padding),
+      };
+    }
+
+    function spawnEnemy() {
+      const pos = randomEdgePosition();
+      const minutes = world.time / 60;
+      const roll = Math.random();
+      const eraLength = 42;
+      const era = Math.floor(world.time / eraLength) % 6;
+      const cycle = Math.floor(world.time / (eraLength * 6));
+      const eraTier = era + cycle * 6;
+      const groundTypes = [
+        ["fly"],
+        ["ladybug"],
+        ["bug"],
+        ["cricket"],
+        ["rhino"],
+        ["spider"],
+      ][era];
+      const dragonflyChance = world.time < 42 ? 0 : Math.min(0.3, 0.1 + minutes * 0.018);
+      let type = groundTypes[Math.floor(Math.random() * groundTypes.length)];
+      if (roll < dragonflyChance) {
+        type = "dragonfly";
+      }
+      const tierPower = Math.pow(1.28, eraTier);
+      const dragonflyPower = Math.pow(1.18, cycle);
+
+      const stats = {
+        fly: {
+          radius: 16,
+          hp: 34 * tierPower,
+          speed: 48 + Math.min(24, eraTier * 1.7),
+          damage: 9 + eraTier * 2,
+          color: "#7dc35f",
+        },
+        bug: {
+          radius: 22,
+          hp: 34 * tierPower,
+          speed: 34 + Math.min(18, eraTier * 1.1),
+          damage: 9 + eraTier * 2,
+          color: "#c55250",
+        },
+        ladybug: {
+          radius: 20,
+          hp: 34 * tierPower,
+          speed: 43 + Math.min(20, eraTier * 1.2),
+          damage: 9 + eraTier * 2,
+          color: "#d94e55",
+        },
+        cricket: {
+          radius: 21,
+          hp: 34 * tierPower,
+          speed: 58 + Math.min(22, eraTier * 1.2),
+          damage: 9 + eraTier * 2,
+          color: "#6a9f42",
+        },
+        dragonfly: {
+          radius: 18,
+          hp: (42 + minutes * 10) * dragonflyPower,
+          speed: 82 + Math.min(24, minutes * 1.3),
+          damage: 12 + cycle * 3,
+          color: "#51b9d6",
+        },
+        rhino: {
+          radius: 25,
+          hp: 34 * tierPower,
+          speed: 25 + Math.min(12, eraTier * 0.7),
+          damage: 9 + eraTier * 2,
+          color: "#72564a",
+        },
+        spider: {
+          radius: 23,
+          hp: 34 * tierPower,
+          speed: 44 + Math.min(20, eraTier * 1.1),
+          damage: 9 + eraTier * 2,
+          color: "#4b3c4f",
+        },
+      }[type];
+
+      const enemy = {
+        id: nextEnemyId,
+        x: pos.x,
+        y: pos.y,
+        radius: stats.radius,
+        hp: stats.hp,
+        maxHp: stats.hp,
+        speed: stats.speed,
+        damage: stats.damage,
+        color: stats.color,
+        type,
+        pulse: Math.random() * Math.PI * 2,
+        dead: false,
+      };
+      enemies.push(enemy);
+      enemyById.set(enemy.id, enemy);
+      nextEnemyId += 1;
+    }
+
+    function averageNonBossHp(fallback = 80 + world.time * 0.6) {
+      const living = enemies.filter((enemy) => !enemy.dead && !enemy.isBoss);
+      return living.length
+        ? living.reduce((sum, enemy) => sum + enemy.maxHp, 0) / living.length
+        : fallback;
+    }
+
+    function addEnemy(enemy) {
+      enemies.push(enemy);
+      enemyById.set(enemy.id, enemy);
+      nextEnemyId += 1;
+    }
+
+    function makeBossBase(type, pos, radius, hp, speed, damage, color) {
+      return {
+        id: nextEnemyId,
+        x: pos.x,
+        y: pos.y,
+        radius,
+        hp,
+        maxHp: hp,
+        speed,
+        damage,
+        color,
+        type,
+        isBoss: true,
+        pulse: Math.random() * Math.PI * 2,
+        dead: false,
+      };
+    }
+
+    function spawnBoss() {
+      if (enemies.some((enemy) => enemy.isBoss && !enemy.dead)) return;
+      const pos = randomEdgePosition();
+      const averageHp = averageNonBossHp();
+      const mouseHp = Math.max(780, averageHp * 12);
+      const bossTypes = ["mouse", "queenBee", "bird"];
+      const type = bossTypes[Math.floor(Math.random() * bossTypes.length)];
+
+      const stats = {
+        mouse: {
+          radius: 34,
+          hp: mouseHp,
+          speed: 20 + Math.min(18, world.time / 90),
+          damage: 22,
+          color: "#9d9487",
+        },
+        queenBee: {
+          radius: 38,
+          hp: Math.max(980, averageHp * 18),
+          speed: 24 + Math.min(14, world.time / 110),
+          damage: 20,
+          color: "#d9b232",
+        },
+        bird: {
+          radius: 48,
+          hp: mouseHp * 4,
+          speed: 18 + Math.min(10, world.time / 130),
+          damage: 30,
+          color: "#5b6775",
+        },
+      }[type];
+      const boss = makeBossBase(type, pos, stats.radius, stats.hp, stats.speed, stats.damage, stats.color);
+      if (type === "mouse") boss.shotTimer = 1.2;
+      if (type === "queenBee") boss.spawnTimer = 2.2;
+      addEnemy(boss);
+      floatText.push({ x: boss.x, y: boss.y - 28, text: type === "queenBee" ? "QUEEN BEE" : type.toUpperCase(), life: 1.1, danger: true });
+    }
+
+    function spawnAntSwarm() {
+      const averageHp = averageNonBossHp(45 + world.time * 0.25);
+      const count = 76 + Math.min(84, Math.floor(world.time / 26));
+      const antHp = Math.max(28, averageHp * 0.65);
+
+      for (let i = 0; i < count; i += 1) {
+        const side = i % 4;
+        const margin = 120 + Math.random() * 170;
+        let x = world.cameraX + Math.random() * window.innerWidth;
+        let y = world.cameraY + Math.random() * window.innerHeight;
+        if (side === 0) y = world.cameraY - margin;
+        if (side === 1) x = world.cameraX + window.innerWidth + margin;
+        if (side === 2) y = world.cameraY + window.innerHeight + margin;
+        if (side === 3) x = world.cameraX - margin;
+        x += (Math.random() - 0.5) * 160;
+        y += (Math.random() - 0.5) * 160;
+        const ant = {
+          id: nextEnemyId,
+          x: clamp(x, 0, world.width),
+          y: clamp(y, 0, world.height),
+          radius: 12,
+          hp: antHp,
+          maxHp: antHp,
+          speed: 38 + Math.min(18, world.time / 90),
+          damage: 8 + Math.floor(world.time / 180) * 2,
+          color: "#2c211c",
+          type: "ant",
+          pulse: Math.random() * Math.PI * 2,
+          dead: false,
+        };
+        enemies.push(ant);
+        enemyById.set(ant.id, ant);
+        nextEnemyId += 1;
+      }
+      floatText.push({ x: player.x, y: player.y - 48, text: "ANT SWARM", life: 1, danger: true });
+    }
+
+    function spawnBee(queen) {
+      const hp = Math.max(36, averageNonBossHp(45) * 0.75);
+      const angle = Math.random() * Math.PI * 2;
+      addEnemy({
+        id: nextEnemyId,
+        x: clamp(queen.x + Math.cos(angle) * 36, 0, world.width),
+        y: clamp(queen.y + Math.sin(angle) * 36, 0, world.height),
+        radius: 14,
+        hp,
+        maxHp: hp,
+        speed: 64 + Math.min(18, world.time / 120),
+        damage: 9 + Math.floor(world.time / 180) * 2,
+        color: "#d9b232",
+        type: "bee",
+        pulse: Math.random() * Math.PI * 2,
+        dead: false,
+      });
+    }
+
+    function spawnHeart() {
+      if (hearts.length >= 4 || player.hp >= player.maxHp) return;
+      const pos = randomScreenPosition(120);
+      hearts.push({
+        x: pos.x,
+        y: pos.y,
+        radius: 12,
+        heal: 24,
+        bob: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function getMoveVector() {
+      let x = 0;
+      let y = 0;
+      if (keys.has("KeyA") || keys.has("ArrowLeft")) x -= 1;
+      if (keys.has("KeyD") || keys.has("ArrowRight")) x += 1;
+      if (keys.has("KeyW") || keys.has("ArrowUp")) y -= 1;
+      if (keys.has("KeyS") || keys.has("ArrowDown")) y += 1;
+
+      if (pointer.active) {
+        x += pointer.dx;
+        y += pointer.dy;
+      }
+
+      const length = Math.hypot(x, y) || 1;
+      return { x: x / length, y: y / length, moving: x !== 0 || y !== 0 };
+    }
+
+    function findTarget(range = crossbow.range, ignored = new Set()) {
+      let best = null;
+      let bestDist = range * range;
+      for (const enemy of nearbyEnemies(player.x, player.y, range)) {
+        if (enemy.dead || ignored.has(enemy.id)) continue;
+        const d = distanceSq(player, enemy);
+        if (d < bestDist) {
+          best = enemy;
+          bestDist = d;
+        }
+      }
+      return best;
+    }
+
+    function fireCrossbow() {
+      const target = findTarget();
+      if (!target) return;
+
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(0.62, 0.12 * (crossbow.projectileCount - 1));
+      for (let i = 0; i < crossbow.projectileCount; i += 1) {
+        const offset = crossbow.projectileCount === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (crossbow.projectileCount - 1);
+        const angle = baseAngle + offset;
+        projectiles.push({
+          x: player.x + Math.cos(angle) * 24,
+          y: player.y + Math.sin(angle) * 24,
+          vx: Math.cos(angle) * crossbow.projectileSpeed,
+          vy: Math.sin(angle) * crossbow.projectileSpeed,
+          radius: 5 * crossbow.size,
+          size: crossbow.size,
+          damage: crossbow.damage,
+          pierceLeft: crossbow.pierce,
+          hitIds: new Set(),
+          life: crossbow.range / crossbow.projectileSpeed,
+          angle,
+        });
+      }
+    }
+
+    function fireWand() {
+      if (!wand.unlocked) return;
+      let origin = { x: player.x, y: player.y };
+      const hitIds = new Set();
+      let target = findTarget(wand.range, hitIds);
+      let jumps = wand.ricochet;
+
+      while (target) {
+        target.hp -= wand.damage;
+        hitIds.add(target.id);
+        lasers.push({
+          x1: origin.x,
+          y1: origin.y,
+          x2: target.x,
+          y2: target.y,
+          life: 0.16,
+          maxLife: 0.16,
+        });
+        floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(wand.damage), life: 0.35 });
+        const defeated = target.hp <= 0;
+        if (defeated) killEnemy(target);
+        if (jumps <= 0) break;
+
+        origin = { x: target.x, y: target.y };
+        jumps -= 1;
+
+        let next = null;
+        let nextDist = 280 * 280;
+        for (const enemy of nearbyEnemies(origin.x, origin.y, 280)) {
+          if (enemy.dead || hitIds.has(enemy.id)) continue;
+          const d = distanceSq(enemy, origin);
+          if (d < nextDist) {
+            next = enemy;
+            nextDist = d;
+          }
+        }
+        target = next;
+      }
+    }
+
+    function fireSword() {
+      if (!sword.unlocked) return;
+      const firstTarget = findTarget(sword.range + 45);
+      const baseAngle = firstTarget
+        ? Math.atan2(firstTarget.y - player.y, firstTarget.x - player.x)
+        : world.time * 2.4;
+      const spacing = Math.min(Math.PI * 0.7, sword.arc * 0.55);
+      const hitIds = new Set();
+
+      for (let i = 0; i < sword.slashCount; i += 1) {
+        const offset = sword.slashCount === 1
+          ? 0
+          : -spacing / 2 + (spacing * i) / (sword.slashCount - 1);
+        const angle = baseAngle + offset;
+        slashes.push({
+          x: player.x,
+          y: player.y,
+          angle,
+          range: sword.range,
+          arc: sword.arc,
+          life: 0.22,
+          maxLife: 0.22,
+        });
+
+        for (const enemy of nearbyEnemies(player.x, player.y, sword.range + 34)) {
+          if (enemy.dead || hitIds.has(enemy.id)) continue;
+          const hitRange = sword.range + enemy.radius;
+          const d = distanceSq(player, enemy);
+          if (d > hitRange * hitRange) continue;
+          const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+          if (Math.abs(angleDifference(enemyAngle, angle)) <= sword.arc / 2) {
+            enemy.hp -= sword.damage;
+            hitIds.add(enemy.id);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(sword.damage), life: 0.45 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+      }
+    }
+
+    function spawnAsteroidBelt() {
+      if (!asteroidBelt.unlocked) return;
+      const start = Math.random() * Math.PI * 2;
+      for (let i = 0; i < asteroidBelt.count; i += 1) {
+        asteroids.push({
+          angle: start + (Math.PI * 2 * i) / asteroidBelt.count,
+          radius: asteroidBelt.size,
+          orbitRadius: asteroidBelt.orbitRadius + (i % 2) * 14,
+          damage: asteroidBelt.damage,
+          life: asteroidBelt.duration,
+          maxLife: asteroidBelt.duration,
+          hitCooldowns: new Map(),
+        });
+      }
+    }
+
+    function createLightningOrb(index = 0) {
+      const targetAngle = enemies.length
+        ? Math.atan2(enemies[0].y - player.y, enemies[0].x - player.x)
+        : Math.random() * Math.PI * 2;
+      const angle = targetAngle + index * Math.PI * 0.72;
+
+      return {
+        x: player.x,
+        y: player.y,
+        vx: Math.cos(angle) * lightningOrb.speed,
+        vy: Math.sin(angle) * lightningOrb.speed,
+        radius: lightningOrb.size,
+        damage: lightningOrb.damage,
+        hitCooldowns: new Map(),
+        phase: Math.random() * Math.PI * 2,
+      };
+    }
+
+    function syncLightningOrbs(count = lightningOrb.count) {
+      if (!lightningOrb.unlocked) return;
+      lightningOrb.count = Math.max(1, count);
+      while (lightningOrbs.length < lightningOrb.count) {
+        lightningOrbs.push(createLightningOrb(lightningOrbs.length));
+      }
+      while (lightningOrbs.length > lightningOrb.count) lightningOrbs.pop();
+    }
+
+    function randomEnemy(excludeIds = new Set()) {
+      const choices = enemies.filter((enemy) => !excludeIds.has(enemy.id));
+      if (!choices.length) return null;
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+
+    function randomVisibleEnemy(excludeIds = new Set()) {
+      const margin = 80;
+      const choices = enemies.filter((enemy) => {
+        if (enemy.dead || excludeIds.has(enemy.id)) return false;
+        return enemy.x >= world.cameraX - margin
+          && enemy.x <= world.cameraX + window.innerWidth + margin
+          && enemy.y >= world.cameraY - margin
+          && enemy.y <= world.cameraY + window.innerHeight + margin;
+      });
+      if (!choices.length) return randomEnemy(excludeIds);
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+
+    function fireTadpoles() {
+      if (!tadpoleWeapon.unlocked) return;
+      const usedTargets = new Set();
+      for (let i = 0; i < tadpoleWeapon.count; i += 1) {
+        const target = randomEnemy(usedTargets) || randomEnemy();
+        if (!target) return;
+        usedTargets.add(target.id);
+        const angle = Math.atan2(target.y - player.y, target.x - player.x) + (Math.random() - 0.5) * 0.35;
+        tadpoles.push({
+          x: player.x + Math.cos(angle) * 24,
+          y: player.y + Math.sin(angle) * 24,
+          vx: Math.cos(angle) * tadpoleWeapon.speed,
+          vy: Math.sin(angle) * tadpoleWeapon.speed,
+          radius: 8 * tadpoleWeapon.size,
+          damage: tadpoleWeapon.damage,
+          splashRadius: tadpoleWeapon.splashRadius * tadpoleWeapon.size,
+          speed: tadpoleWeapon.speed,
+          targetId: target.id,
+          life: 3.2,
+          angle,
+          wiggle: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function fireTongues() {
+      if (!tongueWeapon.unlocked) return;
+      tongues.length = 0;
+      const usedTargets = new Set();
+      for (let i = 0; i < tongueWeapon.count; i += 1) {
+        const target = randomEnemy(usedTargets) || randomEnemy();
+        if (!target) break;
+        usedTargets.add(target.id);
+        tongues.push({
+          targetId: target.id,
+          life: tongueWeapon.duration,
+          maxLife: tongueWeapon.duration,
+          tick: 0,
+          phase: Math.random() * Math.PI * 2,
+          hitCooldowns: new Map(),
+        });
+      }
+    }
+
+    function dropPuddle() {
+      if (!puddleWeapon.unlocked) return;
+      puddles.push({
+        x: player.x + (Math.random() - 0.5) * 10,
+        y: player.y + (Math.random() - 0.5) * 10,
+        radius: puddleWeapon.radius,
+        damage: puddleWeapon.damage,
+        slow: puddleWeapon.slow,
+        life: puddleWeapon.duration,
+        maxLife: puddleWeapon.duration,
+        tickRate: puddleWeapon.tickRate,
+        hitCooldowns: new Map(),
+        ripple: Math.random() * Math.PI * 2,
+      });
+      if (puddles.length > 90) puddles.shift();
+    }
+
+    function fireRain() {
+      if (!rainWeapon.unlocked) return;
+      const usedTargets = new Set();
+      for (let i = 0; i < rainWeapon.count; i += 1) {
+        const target = randomVisibleEnemy(usedTargets);
+        if (!target) break;
+        usedTargets.add(target.id);
+        const drift = (Math.random() - 0.5) * rainWeapon.splashRadius * 0.65;
+        raindrops.push({
+          x: clamp(target.x + drift, 0, world.width),
+          y: clamp(target.y + (Math.random() - 0.5) * rainWeapon.splashRadius * 0.45, 0, world.height),
+          startY: target.y - 260 - Math.random() * 120,
+          damage: rainWeapon.damage,
+          radius: rainWeapon.splashRadius,
+          life: rainWeapon.fallTime,
+          maxLife: rainWeapon.fallTime,
+          angle: (Math.random() - 0.5) * 0.12,
+        });
+      }
+    }
+
+    function splashRain(drop) {
+      explosions.push({
+        x: drop.x,
+        y: drop.y,
+        radius: drop.radius,
+        life: 0.3,
+        maxLife: 0.3,
+        color: "#8edcff",
+      });
+
+      for (const enemy of nearbyEnemies(drop.x, drop.y, drop.radius + 34)) {
+        if (enemy.dead) continue;
+        const hitRange = drop.radius + enemy.radius;
+        if (distanceSq(enemy, drop) < hitRange * hitRange) {
+          enemy.hp -= drop.damage;
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(drop.damage), life: 0.42 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
+    function syncSkyLasers() {
+      if (!skyLaser.unlocked) return;
+      while (skyLasers.length < skyLaser.count) {
+        skyLasers.push({
+          targetId: null,
+          tick: 0,
+          shimmer: Math.random() * Math.PI * 2,
+        });
+      }
+      while (skyLasers.length > skyLaser.count) skyLasers.pop();
+    }
+
+    function retargetSkyLaser(beam, usedTargets = new Set()) {
+      const target = randomEnemy(usedTargets);
+      beam.targetId = target ? target.id : null;
+      beam.tick = 0;
+      if (target) usedTargets.add(target.id);
+    }
+
+    function dropLandMines() {
+      if (!landMine.unlocked) return;
+      for (let i = 0; i < landMine.count; i += 1) {
+        const pos = randomScreenPosition(90);
+        mines.push({
+          x: pos.x,
+          y: pos.y,
+          radius: landMine.size,
+          damage: landMine.damage,
+          armed: 0.35,
+          pulse: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function explodeMine(mine) {
+      explosions.push({
+        x: mine.x,
+        y: mine.y,
+        radius: mine.radius * 2.35,
+        life: 0.34,
+        maxLife: 0.34,
+      });
+
+      const blastRadius = mine.radius * 2.35;
+      for (const enemy of nearbyEnemies(mine.x, mine.y, blastRadius + 34)) {
+        if (enemy.dead) continue;
+        const hitRange = enemy.radius + blastRadius;
+        if (distanceSq(enemy, mine) < hitRange * hitRange) {
+          enemy.hp -= mine.damage;
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(mine.damage), life: 0.5 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
+    function splashTadpole(tadpole) {
+      explosions.push({
+        x: tadpole.x,
+        y: tadpole.y,
+        radius: tadpole.splashRadius,
+        life: 0.32,
+        maxLife: 0.32,
+        color: "#87d7b3",
+      });
+
+      for (const enemy of nearbyEnemies(tadpole.x, tadpole.y, tadpole.splashRadius + 34)) {
+        if (enemy.dead) continue;
+        const hitRange = tadpole.splashRadius + enemy.radius;
+        if (distanceSq(enemy, tadpole) < hitRange * hitRange) {
+          enemy.hp -= tadpole.damage;
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(tadpole.damage), life: 0.42 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
+    function fireBossProjectile(boss) {
+      const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+      const speed = 185 + Math.min(90, world.time * 0.35);
+      enemyProjectiles.push({
+        x: boss.x,
+        y: boss.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 7,
+        damage: 12 + Math.floor(world.time / 120) * 3,
+        life: 4,
+      });
+    }
+
+    function gainXp(amount) {
+      player.xp += amount;
+      while (player.xp >= player.xpNeeded) {
+        player.xp -= player.xpNeeded;
+        player.level += 1;
+        player.xpNeeded = Math.floor(player.xpNeeded * 1.28 + 5);
+        world.pendingUpgrades += 1;
+      }
+      if (!world.paused && world.pendingUpgrades > 0) openUpgradeChoice();
+      updateUi();
+    }
+
+    function killEnemy(enemy) {
+      if (!enemy || enemy.dead) return;
+      enemy.dead = true;
+      enemyById.delete(enemy.id);
+      const index = enemies.indexOf(enemy);
+      if (index >= 0) enemies.splice(index, 1);
+      player.kills += 1;
+      const expValues = {
+        fly: 2,
+        dragonfly: 3,
+        ladybug: 4,
+        bug: 5,
+        cricket: 6,
+        rhino: 8,
+        spider: 10,
+        ant: 3,
+        bee: 4,
+        mouse: 30,
+        queenBee: 38,
+        bird: 55,
+      };
+      const expValue = expValues[enemy.type] || 2;
+      if (enemy.isBoss) {
+        const gemCount = enemy.type === "bird" ? 26 : enemy.type === "queenBee" ? 20 : 16;
+        const gemValue = enemy.type === "bird" ? 8 : enemy.type === "queenBee" ? 7 : 6;
+        for (let i = 0; i < gemCount; i += 1) {
+          const angle = (Math.PI * 2 * i) / gemCount;
+          const spread = 18 + (i % 5) * 10;
+          gems.push({
+            x: enemy.x + Math.cos(angle) * spread,
+            y: enemy.y + Math.sin(angle) * spread,
+            radius: 11,
+            value: gemValue,
+            bob: Math.random() * Math.PI * 2,
+          });
+        }
+        hearts.push({
+          x: enemy.x,
+          y: enemy.y,
+          radius: 13,
+          heal: 38,
+          bob: Math.random() * Math.PI * 2,
+        });
+      } else {
+        gems.push({
+          x: enemy.x,
+          y: enemy.y,
+          radius: 7 + Math.min(6, expValue * 0.6),
+          value: expValue,
+          bob: Math.random() * Math.PI * 2,
+        });
+      }
+      floatText.push({ x: enemy.x, y: enemy.y - 12, text: "+EXP", life: 0.7 });
+      updateUi();
+    }
+
+    function openUpgradeChoice() {
+      world.pendingUpgrades = Math.max(0, world.pendingUpgrades - 1);
+      world.paused = true;
+      ui.levelUp.classList.add("show");
+      ui.upgradeGrid.innerHTML = "";
+      const choosingStarter = ownedWeaponCount() === 0;
+      ui.upgradeTitle.textContent = choosingStarter ? "Choose a starting weapon" : "Choose an upgrade";
+      ui.upgradeSubtitle.textContent = choosingStarter
+        ? "Pick the first weapon for this run."
+        : "The world pauses while you sharpen the build.";
+
+      const canAddWeapon = ownedWeaponCount() < 5;
+      const availableUpgrades = upgradePool
+        .filter((upgrade) => (!upgrade.unlock || canAddWeapon) && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock) && (!upgrade.available || upgrade.available()));
+      const guaranteed = availableUpgrades
+        .filter((upgrade) => upgrade.unlock)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+      const choices = availableUpgrades
+        .filter((upgrade) => !guaranteed.includes(upgrade))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3 - guaranteed.length);
+      choices.unshift(...guaranteed);
+
+      for (const upgrade of choices) {
+        const button = document.createElement("button");
+        button.className = "upgrade";
+        button.type = "button";
+        button.innerHTML = `<strong>${upgrade.name}</strong><span>${upgrade.text}</span>`;
+        button.addEventListener("click", () => {
+          upgrade.apply();
+          if (!upgrade.unlock) {
+            if (upgrade.weapon === "wand") wand.level += 1;
+            if (upgrade.weapon === "crossbow") crossbow.level += 1;
+            if (upgrade.weapon === "sword") sword.level += 1;
+            if (upgrade.weapon === "asteroid") asteroidBelt.level += 1;
+            if (upgrade.weapon === "lightning") lightningOrb.level += 1;
+            if (upgrade.weapon === "ring") energyRing.level += 1;
+            if (upgrade.weapon === "sky") skyLaser.level += 1;
+            if (upgrade.weapon === "mine") landMine.level += 1;
+            if (upgrade.weapon === "tadpole") tadpoleWeapon.level += 1;
+            if (upgrade.weapon === "tongue") tongueWeapon.level += 1;
+            if (upgrade.weapon === "puddle") puddleWeapon.level += 1;
+            if (upgrade.weapon === "rain") rainWeapon.level += 1;
+          }
+          ui.levelUp.classList.remove("show");
+          if (world.pendingUpgrades > 0) {
+            openUpgradeChoice();
+          } else {
+            world.paused = false;
+          }
+          updateUi();
+        });
+        ui.upgradeGrid.appendChild(button);
+      }
+
+      const first = ui.upgradeGrid.querySelector("button");
+      if (first) first.focus();
+    }
+
+    function update(dt) {
+      if (world.paused) return;
+      if (world.ended) return;
+
+      world.time += dt;
+      world.spawnTimer -= dt;
+      world.bossTimer -= dt;
+      world.antTimer -= dt;
+      world.heartTimer -= dt;
+      crossbow.timer -= dt;
+      wand.timer -= dt;
+      sword.timer -= dt;
+      asteroidBelt.timer -= dt;
+      lightningOrb.timer -= dt;
+      landMine.timer -= dt;
+      tadpoleWeapon.timer -= dt;
+      tongueWeapon.timer -= dt;
+      puddleWeapon.timer -= dt;
+      rainWeapon.timer -= dt;
+      player.hurtTimer = Math.max(0, player.hurtTimer - dt);
+
+      const move = getMoveVector();
+      if (move.moving) {
+        player.x = clamp(player.x + move.x * player.speed * dt, player.radius, world.width - player.radius);
+        player.y = clamp(player.y + move.y * player.speed * dt, player.radius, world.height - player.radius);
+        if (puddleWeapon.unlocked && puddleWeapon.timer <= 0) {
+          dropPuddle();
+          puddleWeapon.timer = puddleWeapon.dropEvery;
+        }
+      }
+
+      world.cameraX = clamp(player.x - window.innerWidth / 2, 0, world.width - window.innerWidth);
+      world.cameraY = clamp(player.y - window.innerHeight / 2, 0, world.height - window.innerHeight);
+
+      if (world.spawnTimer <= 0) {
+        const eraLength = 42;
+        const era = Math.floor(world.time / eraLength) % 6;
+        const cycle = Math.floor(world.time / (eraLength * 6));
+        const eraTier = era + cycle * 6;
+        const softCap = Math.min(145, Math.max(55, 95 + Math.floor(world.time / 75) - eraTier * 3));
+        const spawnCount = enemies.length > softCap ? 0 : 1;
+        for (let i = 0; i < spawnCount; i += 1) spawnEnemy();
+        const timePressure = Math.min(0.42, world.time * 0.00075);
+        const cyclePressure = Math.min(0.28, cycle * 0.045);
+        const tierBreathingRoom = era * 0.018;
+        world.spawnEvery = Math.max(0.38, 0.82 - timePressure - cyclePressure + tierBreathingRoom);
+        world.spawnTimer = world.spawnEvery;
+      }
+
+      if (world.bossTimer <= 0) {
+        spawnBoss();
+        world.bossTimer = 85 + Math.random() * 35;
+      }
+
+      if (world.antTimer <= 0) {
+        spawnAntSwarm();
+        world.antTimer = 95 + Math.random() * 55;
+      }
+
+      rebuildSpatialGrid();
+
+      if (world.heartTimer <= 0) {
+        if (Math.random() < 0.55) spawnHeart();
+        world.heartTimer = 9 + Math.random() * 7;
+      }
+
+      if (crossbow.unlocked && crossbow.timer <= 0) {
+        fireCrossbow();
+        crossbow.timer = crossbow.cooldown;
+      }
+
+      if (wand.unlocked && wand.timer <= 0) {
+        fireWand();
+        wand.timer = wand.cooldown;
+      }
+
+      if (sword.unlocked && sword.timer <= 0) {
+        fireSword();
+        sword.timer = sword.cooldown;
+      }
+
+      if (asteroidBelt.unlocked && asteroidBelt.timer <= 0 && asteroids.length === 0) {
+        spawnAsteroidBelt();
+        asteroidBelt.timer = asteroidBelt.duration + asteroidBelt.cooldown;
+      }
+
+      if (lightningOrb.unlocked && lightningOrbs.length === 0) {
+        syncLightningOrbs();
+      }
+
+      if (landMine.unlocked && landMine.timer <= 0) {
+        dropLandMines();
+        landMine.timer = landMine.cooldown;
+      }
+
+      if (tadpoleWeapon.unlocked && tadpoleWeapon.timer <= 0) {
+        fireTadpoles();
+        tadpoleWeapon.timer = tadpoleWeapon.cooldown;
+      }
+
+      if (tongueWeapon.unlocked && tongueWeapon.timer <= 0) {
+        fireTongues();
+        tongueWeapon.timer = tongueWeapon.duration + tongueWeapon.cooldown;
+      }
+
+      if (rainWeapon.unlocked && rainWeapon.timer <= 0) {
+        fireRain();
+        rainWeapon.timer = rainWeapon.cooldown;
+      }
+
+      for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+        const arrow = projectiles[i];
+        arrow.x += arrow.vx * dt;
+        arrow.y += arrow.vy * dt;
+        arrow.life -= dt;
+
+        let hit = false;
+        for (const enemy of nearbyEnemies(arrow.x, arrow.y, arrow.radius + 34)) {
+          if (enemy.dead || arrow.hitIds.has(enemy.id)) continue;
+          const hitRange = arrow.radius + enemy.radius;
+          if (distanceSq(arrow, enemy) < hitRange * hitRange) {
+            enemy.hp -= arrow.damage;
+            arrow.hitIds.add(enemy.id);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(arrow.damage), life: 0.45 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+            if (arrow.pierceLeft > 0) {
+              arrow.pierceLeft -= 1;
+            } else {
+              hit = true;
+              break;
+            }
+          }
+        }
+
+        if (hit || arrow.life <= 0) projectiles.splice(i, 1);
+      }
+
+      for (let i = tadpoles.length - 1; i >= 0; i -= 1) {
+        const tadpole = tadpoles[i];
+        const target = enemyById.get(tadpole.targetId) || randomEnemy();
+        if (target) {
+          tadpole.targetId = target.id;
+          const desired = Math.atan2(target.y - tadpole.y, target.x - tadpole.x);
+          let turn = angleDifference(desired, tadpole.angle);
+          turn = clamp(turn, -4.6 * dt, 4.6 * dt);
+          tadpole.angle += turn;
+          tadpole.vx = Math.cos(tadpole.angle) * tadpole.speed;
+          tadpole.vy = Math.sin(tadpole.angle) * tadpole.speed;
+        }
+        tadpole.x += tadpole.vx * dt;
+        tadpole.y += tadpole.vy * dt;
+        tadpole.wiggle += dt * 12;
+        tadpole.life -= dt;
+
+        let hit = false;
+        for (const enemy of nearbyEnemies(tadpole.x, tadpole.y, tadpole.radius + 34)) {
+          if (enemy.dead) continue;
+          const hitRange = tadpole.radius + enemy.radius;
+          if (distanceSq(tadpole, enemy) < hitRange * hitRange) {
+            splashTadpole(tadpole);
+            hit = true;
+            break;
+          }
+        }
+
+        if (hit || tadpole.life <= 0 || tadpole.x < -80 || tadpole.x > world.width + 80 || tadpole.y < -80 || tadpole.y > world.height + 80) {
+          tadpoles.splice(i, 1);
+        }
+      }
+
+      for (let i = raindrops.length - 1; i >= 0; i -= 1) {
+        const drop = raindrops[i];
+        drop.life -= dt;
+        if (drop.life <= 0) {
+          splashRain(drop);
+          raindrops.splice(i, 1);
+        }
+      }
+
+      for (let i = lasers.length - 1; i >= 0; i -= 1) {
+        lasers[i].life -= dt;
+        if (lasers[i].life <= 0) lasers.splice(i, 1);
+      }
+
+      for (let i = tongues.length - 1; i >= 0; i -= 1) {
+        const tongue = tongues[i];
+        tongue.life -= dt;
+        tongue.phase += dt * 10;
+        tongue.tick -= dt;
+        const target = enemyById.get(tongue.targetId) || randomEnemy();
+        if (target) tongue.targetId = target.id;
+
+        for (const [enemyId, cooldown] of tongue.hitCooldowns) {
+          if (cooldown <= dt) {
+            tongue.hitCooldowns.delete(enemyId);
+          } else {
+            tongue.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+
+        if (target && tongue.tick <= 0) {
+          const a = { x: player.x, y: player.y };
+          const b = { x: target.x, y: target.y };
+          const hitIds = new Set([target.id]);
+          target.hp -= tongueWeapon.damage;
+          floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(tongueWeapon.damage), life: 0.34 });
+          if (target.hp <= 0) killEnemy(target);
+
+          const reach = Math.hypot(b.x - a.x, b.y - a.y) + tongueWeapon.width + 60;
+          for (const enemy of nearbyEnemies((a.x + b.x) / 2, (a.y + b.y) / 2, reach / 2 + 80)) {
+            if (enemy.dead || hitIds.has(enemy.id) || tongue.hitCooldowns.has(enemy.id)) continue;
+            const touchRange = enemy.radius + tongueWeapon.width / 2;
+            if (distanceToSegmentSq(enemy, a, b) < touchRange * touchRange) {
+              enemy.hp -= tongueWeapon.damage;
+              hitIds.add(enemy.id);
+              tongue.hitCooldowns.set(enemy.id, tongueWeapon.tickRate);
+              floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(tongueWeapon.damage), life: 0.34 });
+              if (enemy.hp <= 0) killEnemy(enemy);
+            }
+          }
+          tongue.tick = tongueWeapon.tickRate;
+        }
+
+        if (tongue.life <= 0 || !target) tongues.splice(i, 1);
+      }
+
+      for (let i = slashes.length - 1; i >= 0; i -= 1) {
+        slashes[i].life -= dt;
+        if (slashes[i].life <= 0) slashes.splice(i, 1);
+      }
+
+      for (let i = explosions.length - 1; i >= 0; i -= 1) {
+        explosions[i].life -= dt;
+        if (explosions[i].life <= 0) explosions.splice(i, 1);
+      }
+
+      for (let i = puddles.length - 1; i >= 0; i -= 1) {
+        const puddle = puddles[i];
+        puddle.life -= dt;
+        puddle.ripple += dt * 2.8;
+        for (const [enemyId, cooldown] of puddle.hitCooldowns) {
+          if (cooldown <= dt) {
+            puddle.hitCooldowns.delete(enemyId);
+          } else {
+            puddle.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+        if (puddle.life <= 0) puddles.splice(i, 1);
+      }
+
+      for (let i = enemyProjectiles.length - 1; i >= 0; i -= 1) {
+        const shot = enemyProjectiles[i];
+        shot.x += shot.vx * dt;
+        shot.y += shot.vy * dt;
+        shot.life -= dt;
+
+        const hitRange = player.radius + shot.radius;
+        if (distanceSq(player, shot) < hitRange * hitRange) {
+          player.hp -= shot.damage;
+          player.hurtTimer = Math.max(player.hurtTimer, 0.35);
+          floatText.push({ x: player.x, y: player.y - 24, text: `-${shot.damage}`, life: 0.55, danger: true });
+          enemyProjectiles.splice(i, 1);
+          if (player.hp <= 0) endRun();
+          updateUi();
+        } else if (shot.life <= 0 || shot.x < world.cameraX - 120 || shot.x > world.cameraX + window.innerWidth + 120 || shot.y < world.cameraY - 120 || shot.y > world.cameraY + window.innerHeight + 120) {
+          enemyProjectiles.splice(i, 1);
+        }
+      }
+
+      for (let i = mines.length - 1; i >= 0; i -= 1) {
+        const mine = mines[i];
+        mine.armed = Math.max(0, mine.armed - dt);
+        mine.pulse += dt * 5;
+        if (mine.armed > 0) continue;
+
+        for (const enemy of nearbyEnemies(mine.x, mine.y, mine.radius + 34)) {
+          if (enemy.dead) continue;
+          const hitRange = enemy.radius + mine.radius;
+          if (distanceSq(enemy, mine) < hitRange * hitRange) {
+            explodeMine(mine);
+            mines.splice(i, 1);
+            break;
+          }
+        }
+      }
+
+      for (let i = asteroids.length - 1; i >= 0; i -= 1) {
+        const asteroid = asteroids[i];
+        asteroid.life -= dt;
+        asteroid.angle += asteroidBelt.orbitSpeed * dt;
+
+        for (const [enemyId, cooldown] of asteroid.hitCooldowns) {
+          if (cooldown <= dt) {
+            asteroid.hitCooldowns.delete(enemyId);
+          } else {
+            asteroid.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+
+        const asteroidX = player.x + Math.cos(asteroid.angle) * asteroid.orbitRadius;
+        const asteroidY = player.y + Math.sin(asteroid.angle) * asteroid.orbitRadius;
+        for (const enemy of nearbyEnemies(asteroidX, asteroidY, asteroid.radius + 34)) {
+          if (enemy.dead || asteroid.hitCooldowns.has(enemy.id)) continue;
+          const hitRange = enemy.radius + asteroid.radius;
+          if (distanceSq(enemy, { x: asteroidX, y: asteroidY }) < hitRange * hitRange) {
+            enemy.hp -= asteroid.damage;
+            asteroid.hitCooldowns.set(enemy.id, 0.42);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(asteroid.damage), life: 0.4 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+
+        if (asteroid.life <= 0) asteroids.splice(i, 1);
+      }
+
+      for (let i = lightningOrbs.length - 1; i >= 0; i -= 1) {
+        const orb = lightningOrbs[i];
+        orb.x += orb.vx * dt;
+        orb.y += orb.vy * dt;
+        orb.phase += dt * 9;
+        orb.radius = lightningOrb.size;
+        orb.damage = lightningOrb.damage;
+
+        const speed = Math.hypot(orb.vx, orb.vy) || 1;
+        orb.vx = (orb.vx / speed) * lightningOrb.speed;
+        orb.vy = (orb.vy / speed) * lightningOrb.speed;
+
+        const minX = world.cameraX + orb.radius;
+        const maxX = world.cameraX + window.innerWidth - orb.radius;
+        const minY = world.cameraY + orb.radius;
+        const maxY = world.cameraY + window.innerHeight - orb.radius;
+        if (orb.x <= minX || orb.x >= maxX) {
+          orb.x = clamp(orb.x, minX, maxX);
+          orb.vx *= -1;
+        }
+        if (orb.y <= minY || orb.y >= maxY) {
+          orb.y = clamp(orb.y, minY, maxY);
+          orb.vy *= -1;
+        }
+
+        for (const [enemyId, cooldown] of orb.hitCooldowns) {
+          if (cooldown <= dt) {
+            orb.hitCooldowns.delete(enemyId);
+          } else {
+            orb.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+
+        for (const enemy of nearbyEnemies(orb.x, orb.y, orb.radius + 34)) {
+          if (enemy.dead || orb.hitCooldowns.has(enemy.id)) continue;
+          const hitRange = enemy.radius + orb.radius;
+          if (distanceSq(enemy, orb) < hitRange * hitRange) {
+            enemy.hp -= orb.damage;
+            orb.hitCooldowns.set(enemy.id, 0.85);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(orb.damage), life: 0.5 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+      }
+
+      if (energyRing.unlocked) {
+        for (const [enemyId, cooldown] of energyRing.hitCooldowns) {
+          if (cooldown <= dt) {
+            energyRing.hitCooldowns.delete(enemyId);
+          } else {
+            energyRing.hitCooldowns.set(enemyId, cooldown - dt);
+          }
+        }
+
+        for (const enemy of nearbyEnemies(player.x, player.y, energyRing.radius + 34)) {
+          if (enemy.dead || energyRing.hitCooldowns.has(enemy.id)) continue;
+          const hitRange = energyRing.radius + enemy.radius;
+          if (distanceSq(player, enemy) < hitRange * hitRange) {
+            enemy.hp -= energyRing.damage;
+            energyRing.hitCooldowns.set(enemy.id, energyRing.tickRate);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(energyRing.damage), life: 0.38 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+      }
+
+      if (skyLaser.unlocked) {
+        syncSkyLasers();
+        const usedTargets = new Set();
+        for (const beam of skyLasers) {
+          const current = enemyById.get(beam.targetId);
+          if (!current || current.dead || current.hp <= 0) {
+            retargetSkyLaser(beam, usedTargets);
+          } else {
+            usedTargets.add(current.id);
+          }
+        }
+
+        for (const beam of skyLasers) {
+          const target = enemyById.get(beam.targetId);
+          if (!target) continue;
+          beam.tick -= dt;
+          beam.shimmer += dt * 12;
+          if (beam.tick <= 0) {
+            target.hp -= skyLaser.damage;
+            beam.tick = skyLaser.tickRate;
+            floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(skyLaser.damage), life: 0.32 });
+            if (target.hp <= 0) {
+              killEnemy(target);
+              retargetSkyLaser(beam);
+            }
+          }
+        }
+      }
+
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+        let slowAmount = 0;
+        for (const puddle of puddles) {
+          const touchRange = puddle.radius + enemy.radius * 0.5;
+          if (distanceSq(enemy, puddle) < touchRange * touchRange) {
+            slowAmount = Math.max(slowAmount, puddle.slow);
+            if (!puddle.hitCooldowns.has(enemy.id)) {
+              enemy.hp -= puddle.damage;
+              puddle.hitCooldowns.set(enemy.id, puddle.tickRate);
+              floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(puddle.damage), life: 0.34 });
+              if (enemy.hp <= 0) killEnemy(enemy);
+            }
+          }
+        }
+        if (enemy.dead) continue;
+        const speedScale = 1 - clamp(slowAmount, 0, 0.75);
+        enemy.x += Math.cos(angle) * enemy.speed * speedScale * dt;
+        enemy.y += Math.sin(angle) * enemy.speed * speedScale * dt;
+        enemy.pulse += dt * 5;
+
+        if (enemy.type === "mouse") {
+          enemy.shotTimer -= dt;
+          if (enemy.shotTimer <= 0) {
+            fireBossProjectile(enemy);
+            enemy.shotTimer = Math.max(0.55, 1.35 - world.time * 0.0015);
+          }
+        } else if (enemy.type === "queenBee") {
+          enemy.spawnTimer -= dt;
+          if (enemy.spawnTimer <= 0) {
+            const beeCount = 2 + Math.min(3, Math.floor(world.time / 180));
+            for (let i = 0; i < beeCount; i += 1) spawnBee(enemy);
+            enemy.spawnTimer = Math.max(1.4, 3 - world.time * 0.002);
+          }
+        }
+
+        const touchRange = player.radius + enemy.radius;
+        if (distanceSq(player, enemy) < touchRange * touchRange && player.hurtTimer <= 0) {
+          player.hp -= enemy.damage;
+          player.hurtTimer = 0.55;
+          floatText.push({ x: player.x, y: player.y - 24, text: `-${enemy.damage}`, life: 0.55, danger: true });
+          if (player.hp <= 0) endRun();
+          updateUi();
+        }
+      }
+
+      for (let i = gems.length - 1; i >= 0; i -= 1) {
+        const gem = gems[i];
+        gem.bob += dt * 5;
+        const d = distance(player, gem);
+        if (d < 150) {
+          const angle = Math.atan2(player.y - gem.y, player.x - gem.x);
+          const pull = d < 55 ? 690 : 310;
+          gem.x += Math.cos(angle) * pull * dt;
+          gem.y += Math.sin(angle) * pull * dt;
+        }
+        if (d < player.radius + gem.radius + 3) {
+          gainXp(gem.value);
+          gems.splice(i, 1);
+        }
+      }
+
+      for (let i = hearts.length - 1; i >= 0; i -= 1) {
+        const heart = hearts[i];
+        heart.bob += dt * 4;
+        const d = distance(player, heart);
+        if (d < 115) {
+          const angle = Math.atan2(player.y - heart.y, player.x - heart.x);
+          const pull = d < 45 ? 560 : 220;
+          heart.x += Math.cos(angle) * pull * dt;
+          heart.y += Math.sin(angle) * pull * dt;
+        }
+        if (d < player.radius + heart.radius + 3) {
+          const healed = Math.min(heart.heal, player.maxHp - player.hp);
+          player.hp = Math.min(player.maxHp, player.hp + heart.heal);
+          if (healed > 0) {
+            floatText.push({ x: player.x, y: player.y - 32, text: `+${Math.round(healed)}`, life: 0.65, heal: true });
+          }
+          hearts.splice(i, 1);
+          updateUi();
+        }
+      }
+
+      if (floatText.length > 90) floatText.splice(0, floatText.length - 90);
+      for (let i = floatText.length - 1; i >= 0; i -= 1) {
+        floatText[i].life -= dt;
+        floatText[i].y -= 34 * dt;
+        if (floatText[i].life <= 0) floatText.splice(i, 1);
+      }
+    }
+
+    function endRun() {
+      world.ended = true;
+      world.paused = true;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0}`;
+      ui.gameOver.classList.add("show");
+      ui.restart.focus();
+    }
+
+    function restartRun() {
+      world.time = 0;
+      world.paused = false;
+      world.ended = false;
+      world.spawnTimer = 0;
+      world.spawnEvery = 0.9;
+      world.bossTimer = 55;
+      world.antTimer = 34;
+      world.heartTimer = 7;
+      world.pendingUpgrades = 0;
+
+      player.x = world.width / 2;
+      player.y = world.height / 2;
+      player.hp = player.maxHp;
+      player.hurtTimer = 0;
+      player.level = 1;
+      player.xp = 0;
+      player.xpNeeded = 8;
+      player.kills = 0;
+
+      crossbow.unlocked = false;
+      crossbow.level = 0;
+      crossbow.damage = 22;
+      crossbow.size = 1;
+      crossbow.projectileCount = 1;
+      crossbow.cooldown = 0.82;
+      crossbow.projectileSpeed = 620;
+      crossbow.range = 620;
+      crossbow.pierce = 0;
+      crossbow.timer = 0;
+
+      wand.unlocked = false;
+      wand.level = 0;
+      wand.damage = 11;
+      wand.cooldown = 0.46;
+      wand.range = 500;
+      wand.ricochet = 0;
+      wand.timer = 0;
+
+      sword.unlocked = false;
+      sword.level = 0;
+      sword.damage = 44;
+      sword.cooldown = 1.1;
+      sword.range = 68;
+      sword.arc = Math.PI * 0.48;
+      sword.slashCount = 1;
+      sword.timer = 0;
+
+      asteroidBelt.unlocked = false;
+      asteroidBelt.level = 0;
+      asteroidBelt.damage = 18;
+      asteroidBelt.size = 13;
+      asteroidBelt.count = 2;
+      asteroidBelt.duration = 3.4;
+      asteroidBelt.cooldown = 1.35;
+      asteroidBelt.timer = 0;
+      asteroidBelt.orbitRadius = 82;
+      asteroidBelt.orbitSpeed = 2.7;
+
+      lightningOrb.unlocked = false;
+      lightningOrb.level = 0;
+      lightningOrb.damage = 58;
+      lightningOrb.size = 28;
+      lightningOrb.speed = 105;
+      lightningOrb.count = 1;
+      lightningOrb.timer = 0;
+
+      energyRing.unlocked = false;
+      energyRing.level = 0;
+      energyRing.damage = 14;
+      energyRing.radius = 138;
+      energyRing.tickRate = 0.65;
+      energyRing.hitCooldowns.clear();
+
+      skyLaser.unlocked = false;
+      skyLaser.level = 0;
+      skyLaser.damage = 9;
+      skyLaser.count = 1;
+      skyLaser.tickRate = 0.22;
+
+      landMine.unlocked = false;
+      landMine.level = 0;
+      landMine.damage = 70;
+      landMine.size = 18;
+      landMine.count = 2;
+      landMine.cooldown = 4.2;
+      landMine.timer = 0;
+
+      tadpoleWeapon.unlocked = false;
+      tadpoleWeapon.level = 0;
+      tadpoleWeapon.damage = 24;
+      tadpoleWeapon.speed = 330;
+      tadpoleWeapon.cooldown = 1.05;
+      tadpoleWeapon.size = 1;
+      tadpoleWeapon.count = 1;
+      tadpoleWeapon.splashRadius = 64;
+      tadpoleWeapon.timer = 0;
+
+      tongueWeapon.unlocked = false;
+      tongueWeapon.level = 0;
+      tongueWeapon.damage = 10;
+      tongueWeapon.duration = 3.2;
+      tongueWeapon.count = 1;
+      tongueWeapon.cooldown = 1.35;
+      tongueWeapon.tickRate = 0.28;
+      tongueWeapon.width = 10;
+      tongueWeapon.timer = 0;
+
+      puddleWeapon.unlocked = false;
+      puddleWeapon.level = 0;
+      puddleWeapon.damage = 8;
+      puddleWeapon.radius = 54;
+      puddleWeapon.duration = 5.8;
+      puddleWeapon.slow = 0.22;
+      puddleWeapon.tickRate = 0.5;
+      puddleWeapon.dropEvery = 0.85;
+      puddleWeapon.timer = 0;
+
+      rainWeapon.unlocked = false;
+      rainWeapon.level = 0;
+      rainWeapon.damage = 16;
+      rainWeapon.splashRadius = 58;
+      rainWeapon.count = 3;
+      rainWeapon.cooldown = 1.6;
+      rainWeapon.fallTime = 0.45;
+      rainWeapon.timer = 0;
+
+      enemies.length = 0;
+      projectiles.length = 0;
+      tadpoles.length = 0;
+      tongues.length = 0;
+      puddles.length = 0;
+      raindrops.length = 0;
+      enemyProjectiles.length = 0;
+      lasers.length = 0;
+      slashes.length = 0;
+      asteroids.length = 0;
+      lightningOrbs.length = 0;
+      skyLasers.length = 0;
+      mines.length = 0;
+      explosions.length = 0;
+      gems.length = 0;
+      hearts.length = 0;
+      floatText.length = 0;
+      enemyById.clear();
+      spatial.cells.clear();
+      nextEnemyId = 1;
+      ui.gameOver.classList.remove("show");
+      ui.levelUp.classList.remove("show");
+      updateUi();
+      for (let i = 0; i < 6; i += 1) spawnEnemy();
+      openUpgradeChoice();
+    }
+
+    function screenX(x) {
+      return x - world.cameraX;
+    }
+
+    function screenY(y) {
+      return y - world.cameraY;
+    }
+
+    function drawGround() {
+      ctx.fillStyle = "#102a26";
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+      const water = ctx.createLinearGradient(0, 0, window.innerWidth, window.innerHeight);
+      water.addColorStop(0, "#12342f");
+      water.addColorStop(0.52, "#1e4336");
+      water.addColorStop(1, "#0d211f");
+      ctx.fillStyle = water;
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+      ctx.fillStyle = "rgba(67, 88, 45, 0.32)";
+      for (let i = 0; i < 34; i += 1) {
+        const x = ((i * 827) % world.width) - world.cameraX;
+        const y = ((i * 613) % world.height) - world.cameraY;
+        if (x > -140 && x < window.innerWidth + 140 && y > -100 && y < window.innerHeight + 100) {
+          ctx.beginPath();
+          ctx.ellipse(x, y, 54 + (i % 5) * 14, 20 + (i % 4) * 7, i * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.strokeStyle = "rgba(157, 218, 196, 0.14)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 42; i += 1) {
+        const x = ((i * 389) % world.width) - world.cameraX;
+        const y = ((i * 557) % world.height) - world.cameraY;
+        if (x > -80 && x < window.innerWidth + 80 && y > -40 && y < window.innerHeight + 40) {
+          ctx.beginPath();
+          ctx.ellipse(x, y, 18 + (i % 4) * 9, 5 + (i % 3) * 2, i * 0.37, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      for (let i = 0; i < 36; i += 1) {
+        const x = ((i * 491) % world.width) - world.cameraX;
+        const y = ((i * 853) % world.height) - world.cameraY;
+        if (x > -70 && x < window.innerWidth + 70 && y > -70 && y < window.innerHeight + 70) {
+          const pad = 15 + (i % 5) * 4;
+          ctx.fillStyle = i % 3 === 0 ? "#4e8e46" : "#3f7f3e";
+          ctx.strokeStyle = "rgba(16, 46, 25, 0.65)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, pad, 0.18, Math.PI * 1.86);
+          ctx.lineTo(x, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          if (i % 6 === 0) {
+            ctx.fillStyle = "#e7d1e8";
+            ctx.beginPath();
+            ctx.arc(x + pad * 0.15, y - pad * 0.12, 3.2, 0, Math.PI * 2);
+            ctx.arc(x + pad * 0.34, y - pad * 0.08, 3.2, 0, Math.PI * 2);
+            ctx.arc(x + pad * 0.24, y + pad * 0.1, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      ctx.strokeStyle = "rgba(116, 142, 75, 0.7)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 46; i += 1) {
+        const x = ((i * 719) % world.width) - world.cameraX;
+        const y = ((i * 337) % world.height) - world.cameraY;
+        if (x > -30 && x < window.innerWidth + 30 && y > -90 && y < window.innerHeight + 30) {
+          const h = 24 + (i % 4) * 11;
+          const lean = ((i % 5) - 2) * 2.8;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + lean, y - h);
+          ctx.stroke();
+          if (i % 3 === 0) {
+            ctx.fillStyle = "#8b6f4a";
+            ctx.beginPath();
+            ctx.ellipse(x + lean, y - h - 5, 4, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      ctx.fillStyle = "rgba(13, 26, 20, 0.22)";
+      for (let i = 0; i < 30; i += 1) {
+        const x = ((i * 947) % world.width) - world.cameraX;
+        const y = ((i * 743) % world.height) - world.cameraY;
+        if (x > -40 && x < window.innerWidth + 40 && y > -40 && y < window.innerHeight + 40) {
+          ctx.beginPath();
+          ctx.ellipse(x, y, 12 + (i % 5) * 4, 6 + (i % 3) * 3, i * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.strokeStyle = "rgba(210, 229, 181, 0.07)";
+      ctx.lineWidth = 1;
+      const current = 96;
+      const startX = -world.cameraX % current;
+      const startY = -world.cameraY % current;
+      for (let x = startX; x < window.innerWidth; x += current) {
+        ctx.beginPath();
+        ctx.moveTo(x + Math.sin((x + world.time * 20) * 0.01) * 8, 0);
+        ctx.lineTo(x - 18, window.innerHeight);
+        ctx.stroke();
+      }
+      for (let y = startY; y < window.innerHeight; y += current) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + Math.cos((y + world.time * 18) * 0.01) * 8);
+        ctx.lineTo(window.innerWidth, y - 10);
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer() {
+      const x = screenX(player.x);
+      const y = screenY(player.y);
+      const barWidth = 48;
+      const barHeight = 7;
+      const barX = x - barWidth / 2;
+      const barY = y - player.radius - 18;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      ctx.fillStyle = "#43d16f";
+      ctx.fillRect(barX, barY, barWidth * clamp(player.hp / player.maxHp, 0, 1), barHeight);
+      ctx.strokeStyle = "rgba(244, 242, 235, 0.65)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+      ctx.beginPath();
+      ctx.ellipse(0, player.radius * 0.72, player.radius * 0.95, player.radius * 0.36, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#58b94e";
+      ctx.strokeStyle = "#173f24";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 4, player.radius * 0.96, player.radius * 0.78, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#6fcf5f";
+      ctx.strokeStyle = "#173f24";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-9, -8, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(9, -8, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#f5f7da";
+      ctx.beginPath();
+      ctx.arc(-9, -9, 4.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(9, -9, 4.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#102516";
+      ctx.beginPath();
+      ctx.arc(-8, -8.5, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(10, -8.5, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#1f5b2c";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 3, 8, 0.18, Math.PI - 0.18);
+      ctx.stroke();
+
+      ctx.fillStyle = "#2f823b";
+      ctx.beginPath();
+      ctx.ellipse(-12, 13, 7, 4, -0.35, 0, Math.PI * 2);
+      ctx.ellipse(12, 13, 7, 4, 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawEnemies() {
+      const crowded = enemies.length > 80;
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const x = screenX(enemy.x);
+        const y = screenY(enemy.y);
+        if (x < -70 || x > window.innerWidth + 70 || y < -90 || y > window.innerHeight + 90) continue;
+        const wobble = Math.sin(enemy.pulse) * 1.5;
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.beginPath();
+        ctx.ellipse(x, y + enemy.radius * 0.75, enemy.radius * 0.9, enemy.radius * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (crowded && !enemy.isBoss) {
+          const crowdColor = {
+            fly: "#2d3330",
+            bug: "#c55250",
+            ladybug: "#d94e55",
+            cricket: "#6a9f42",
+            dragonfly: "#51b9d6",
+            rhino: "#72564a",
+            spider: "#4b3c4f",
+            ant: "#2c211c",
+            bee: "#d9b232",
+          }[enemy.type] || enemy.color;
+          ctx.fillStyle = crowdColor;
+          ctx.strokeStyle = "rgba(10, 16, 14, 0.8)";
+          ctx.lineWidth = 2;
+
+          if (enemy.type === "ant") {
+            ctx.beginPath();
+            ctx.arc(x, y + wobble - enemy.radius * 0.48, enemy.radius * 0.34, 0, Math.PI * 2);
+            ctx.arc(x, y + wobble, enemy.radius * 0.38, 0, Math.PI * 2);
+            ctx.arc(x, y + wobble + enemy.radius * 0.48, enemy.radius * 0.44, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeStyle = "rgba(10, 16, 14, 0.8)";
+            ctx.lineWidth = 1.3;
+            for (let i = -1; i <= 1; i += 1) {
+              ctx.beginPath();
+              ctx.moveTo(x - enemy.radius * 0.32, y + wobble + enemy.radius * i * 0.2);
+              ctx.lineTo(x - enemy.radius * 0.9, y + wobble + enemy.radius * (i * 0.24 + 0.12));
+              ctx.moveTo(x + enemy.radius * 0.32, y + wobble + enemy.radius * i * 0.2);
+              ctx.lineTo(x + enemy.radius * 0.9, y + wobble + enemy.radius * (i * 0.24 + 0.12));
+              ctx.stroke();
+            }
+          } else {
+            if (enemy.type === "fly" || enemy.type === "dragonfly" || enemy.type === "bee") {
+              ctx.fillStyle = "rgba(205, 239, 238, 0.42)";
+              ctx.beginPath();
+              ctx.ellipse(x - enemy.radius * 0.5, y + wobble - enemy.radius * 0.38, enemy.radius * 0.48, enemy.radius * 0.2, -0.45, 0, Math.PI * 2);
+              ctx.ellipse(x + enemy.radius * 0.5, y + wobble - enemy.radius * 0.38, enemy.radius * 0.48, enemy.radius * 0.2, 0.45, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = crowdColor;
+            }
+
+            ctx.beginPath();
+            if (enemy.type === "dragonfly") {
+              ctx.ellipse(x, y + wobble, enemy.radius * 0.42, enemy.radius * 1.05, 0, 0, Math.PI * 2);
+            } else {
+              ctx.ellipse(x, y + wobble, enemy.radius * 0.78, enemy.radius * 0.88, 0, 0, Math.PI * 2);
+            }
+            ctx.fill();
+            ctx.stroke();
+
+            if (enemy.type === "ladybug") {
+              ctx.fillStyle = "#241514";
+              ctx.beginPath();
+              ctx.arc(x - enemy.radius * 0.25, y + wobble, enemy.radius * 0.1, 0, Math.PI * 2);
+              ctx.arc(x + enemy.radius * 0.25, y + wobble, enemy.radius * 0.1, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (enemy.type === "rhino") {
+              ctx.fillStyle = "#d6c5a0";
+              ctx.beginPath();
+              ctx.moveTo(x, y + wobble - enemy.radius * 1.35);
+              ctx.lineTo(x - enemy.radius * 0.18, y + wobble - enemy.radius * 0.62);
+              ctx.lineTo(x + enemy.radius * 0.18, y + wobble - enemy.radius * 0.62);
+              ctx.closePath();
+              ctx.fill();
+            } else if (enemy.type === "spider" || enemy.type === "cricket") {
+              ctx.strokeStyle = "rgba(10, 16, 14, 0.82)";
+              ctx.lineWidth = 1.5;
+              for (let i = -1; i <= 1; i += 1) {
+                ctx.beginPath();
+                ctx.moveTo(x - enemy.radius * 0.55, y + wobble + enemy.radius * i * 0.18);
+                ctx.lineTo(x - enemy.radius * 1.1, y + wobble + enemy.radius * (i * 0.26 + 0.15));
+                ctx.moveTo(x + enemy.radius * 0.55, y + wobble + enemy.radius * i * 0.18);
+                ctx.lineTo(x + enemy.radius * 1.1, y + wobble + enemy.radius * (i * 0.26 + 0.15));
+                ctx.stroke();
+              }
+            }
+          }
+
+          if (enemy.hp < enemy.maxHp * 0.65) {
+            const hpWidth = enemy.radius * 1.6;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.fillRect(x - hpWidth / 2, y - enemy.radius - 10, hpWidth, 4);
+            ctx.fillStyle = "#ef5c5c";
+            ctx.fillRect(x - hpWidth / 2, y - enemy.radius - 10, hpWidth * Math.max(0, enemy.hp / enemy.maxHp), 4);
+          }
+          continue;
+        }
+
+        if (enemy.type === "fly" || enemy.type === "bee") {
+          const wing = 0.9 + Math.sin(enemy.pulse * 3) * 0.15;
+          ctx.save();
+          ctx.translate(x, y + wobble);
+
+          ctx.fillStyle = "rgba(205, 239, 238, 0.55)";
+          ctx.strokeStyle = "rgba(233, 255, 251, 0.75)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(-enemy.radius * 0.58, -enemy.radius * 0.35, enemy.radius * 0.5, enemy.radius * 0.28 * wing, -0.55, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.58, -enemy.radius * 0.35, enemy.radius * 0.5, enemy.radius * 0.28 * wing, 0.55, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = enemy.type === "bee" ? "#d9b232" : "#2d3330";
+          ctx.strokeStyle = "#111614";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(0, 1, enemy.radius * 0.52, enemy.radius * 0.78, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = enemy.type === "bee" ? "#241514" : "#8ae05c";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.18, -enemy.radius * 0.45, enemy.radius * 0.17, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 0.18, -enemy.radius * 0.45, enemy.radius * 0.17, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (enemy.type === "bee") {
+            ctx.strokeStyle = "#5c4215";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.42, -enemy.radius * 0.08);
+            ctx.lineTo(enemy.radius * 0.42, -enemy.radius * 0.08);
+            ctx.moveTo(-enemy.radius * 0.38, enemy.radius * 0.22);
+            ctx.lineTo(enemy.radius * 0.38, enemy.radius * 0.22);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = "#111614";
+          ctx.lineWidth = 1.5;
+          for (let i = -1; i <= 1; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.42, enemy.radius * i * 0.18);
+            ctx.lineTo(-enemy.radius * 0.92, enemy.radius * (i * 0.22 + 0.16));
+            ctx.moveTo(enemy.radius * 0.42, enemy.radius * i * 0.18);
+            ctx.lineTo(enemy.radius * 0.92, enemy.radius * (i * 0.22 + 0.16));
+            ctx.stroke();
+          }
+          ctx.restore();
+        } else if (enemy.type === "dragonfly") {
+          const wing = 0.9 + Math.sin(enemy.pulse * 4) * 0.18;
+          ctx.save();
+          ctx.translate(x, y + wobble);
+
+          ctx.fillStyle = "rgba(165, 236, 245, 0.5)";
+          ctx.strokeStyle = "rgba(225, 255, 255, 0.72)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(-enemy.radius * 0.55, -enemy.radius * 0.38, enemy.radius * 0.82, enemy.radius * 0.2 * wing, -0.22, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.55, -enemy.radius * 0.38, enemy.radius * 0.82, enemy.radius * 0.2 * wing, 0.22, 0, Math.PI * 2);
+          ctx.ellipse(-enemy.radius * 0.48, enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.18 * wing, 0.24, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.48, enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.18 * wing, -0.24, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#3b97a8";
+          ctx.strokeStyle = "#12343b";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(0, 2, enemy.radius * 0.25, enemy.radius * 1.08, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#75d7d4";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.86, enemy.radius * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#182d2f";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.1, -enemy.radius * 0.9, enemy.radius * 0.08, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 0.1, -enemy.radius * 0.9, enemy.radius * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (enemy.type === "queenBee") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const wing = 1 + Math.sin(enemy.pulse * 3.6) * 0.16;
+
+          ctx.fillStyle = "rgba(236, 250, 232, 0.5)";
+          ctx.strokeStyle = "rgba(245, 255, 246, 0.78)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(-enemy.radius * 0.68, -enemy.radius * 0.22, enemy.radius * 0.72, enemy.radius * 0.34 * wing, -0.55, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.68, -enemy.radius * 0.22, enemy.radius * 0.72, enemy.radius * 0.34 * wing, 0.55, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#d9b232";
+          ctx.strokeStyle = "#3c2a11";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 2, enemy.radius * 0.66, enemy.radius * 0.92, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "#5c4215";
+          ctx.lineWidth = 4;
+          for (const stripe of [-0.32, 0.02, 0.36]) {
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.52, enemy.radius * stripe);
+            ctx.lineTo(enemy.radius * 0.52, enemy.radius * stripe);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = "#f1d86c";
+          ctx.beginPath();
+          ctx.moveTo(0, -enemy.radius * 1.25);
+          ctx.lineTo(-enemy.radius * 0.34, -enemy.radius * 0.72);
+          ctx.lineTo(enemy.radius * 0.34, -enemy.radius * 0.72);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#17110b";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.18, -enemy.radius * 0.5, enemy.radius * 0.07, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 0.18, -enemy.radius * 0.5, enemy.radius * 0.07, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (enemy.type === "bird") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const flap = Math.sin(enemy.pulse * 2.4) * enemy.radius * 0.12;
+
+          ctx.fillStyle = "#5b6775";
+          ctx.strokeStyle = "#242b33";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.ellipse(0, 5, enemy.radius * 0.9, enemy.radius * 0.64, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#495562";
+          ctx.beginPath();
+          ctx.ellipse(-enemy.radius * 0.7, 6 + flap, enemy.radius * 0.58, enemy.radius * 0.22, -0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.ellipse(enemy.radius * 0.7, 6 - flap, enemy.radius * 0.58, enemy.radius * 0.22, 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#6f7d8b";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.52, enemy.radius * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#d8a236";
+          ctx.beginPath();
+          ctx.moveTo(0, -enemy.radius * 0.46);
+          ctx.lineTo(-enemy.radius * 0.16, -enemy.radius * 0.2);
+          ctx.lineTo(enemy.radius * 0.16, -enemy.radius * 0.2);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#101419";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.15, -enemy.radius * 0.62, enemy.radius * 0.05, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 0.15, -enemy.radius * 0.62, enemy.radius * 0.05, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (enemy.type === "mouse") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+
+          ctx.fillStyle = "#c0b8aa";
+          ctx.strokeStyle = "#3f3935";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 5, enemy.radius * 0.92, enemy.radius * 0.68, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#b4aa9c";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.52, enemy.radius * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#d6a9b3";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.45, -enemy.radius * 0.9, enemy.radius * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 0.45, -enemy.radius * 0.9, enemy.radius * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#1f1b1b";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.17, -enemy.radius * 0.58, enemy.radius * 0.06, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 0.17, -enemy.radius * 0.58, enemy.radius * 0.06, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#f0b5bd";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.42, enemy.radius * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "#7d746b";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(enemy.radius * 0.78, enemy.radius * 0.24);
+          ctx.bezierCurveTo(enemy.radius * 1.38, enemy.radius * 0.28, enemy.radius * 1.45, enemy.radius * 0.88, enemy.radius * 0.95, enemy.radius * 1.05);
+          ctx.stroke();
+          ctx.restore();
+        } else if (enemy.type === "ant") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          ctx.fillStyle = "#2c211c";
+          ctx.strokeStyle = "#0f0b09";
+          ctx.lineWidth = 1.8;
+
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.55, enemy.radius * 0.36, 0, Math.PI * 2);
+          ctx.arc(0, 0, enemy.radius * 0.42, 0, Math.PI * 2);
+          ctx.arc(0, enemy.radius * 0.58, enemy.radius * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "#0f0b09";
+          ctx.lineWidth = 1.5;
+          for (let i = -1; i <= 1; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.32, enemy.radius * i * 0.26);
+            ctx.lineTo(-enemy.radius * 0.9, enemy.radius * (i * 0.28 + 0.14));
+            ctx.moveTo(enemy.radius * 0.32, enemy.radius * i * 0.26);
+            ctx.lineTo(enemy.radius * 0.9, enemy.radius * (i * 0.28 + 0.14));
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(-enemy.radius * 0.16, -enemy.radius * 0.84);
+          ctx.lineTo(-enemy.radius * 0.48, -enemy.radius * 1.18);
+          ctx.moveTo(enemy.radius * 0.16, -enemy.radius * 0.84);
+          ctx.lineTo(enemy.radius * 0.48, -enemy.radius * 1.18);
+          ctx.stroke();
+          ctx.restore();
+        } else if (enemy.type === "ladybug") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          ctx.fillStyle = "#d94e55";
+          ctx.strokeStyle = "#241514";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(0, 2, enemy.radius * 0.86, enemy.radius * 0.9, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#25211f";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.68, enemy.radius * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(0, -enemy.radius * 0.35);
+          ctx.lineTo(0, enemy.radius * 0.82);
+          ctx.stroke();
+
+          for (const spot of [[-0.34, -0.08], [0.34, -0.08], [-0.28, 0.34], [0.28, 0.34]]) {
+            ctx.beginPath();
+            ctx.arc(enemy.radius * spot[0], enemy.radius * spot[1], enemy.radius * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        } else if (enemy.type === "cricket") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          ctx.fillStyle = "#6a9f42";
+          ctx.strokeStyle = "#1b3219";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(0, 4, enemy.radius * 0.62, enemy.radius * 0.9, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#84bd55";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.7, enemy.radius * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "#1b3219";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(-enemy.radius * 0.45, enemy.radius * 0.22);
+          ctx.lineTo(-enemy.radius * 1.08, enemy.radius * 0.78);
+          ctx.lineTo(-enemy.radius * 1.35, enemy.radius * 0.38);
+          ctx.moveTo(enemy.radius * 0.45, enemy.radius * 0.22);
+          ctx.lineTo(enemy.radius * 1.08, enemy.radius * 0.78);
+          ctx.lineTo(enemy.radius * 1.35, enemy.radius * 0.38);
+          ctx.moveTo(-enemy.radius * 0.2, -enemy.radius * 0.98);
+          ctx.lineTo(-enemy.radius * 0.68, -enemy.radius * 1.42);
+          ctx.moveTo(enemy.radius * 0.2, -enemy.radius * 0.98);
+          ctx.lineTo(enemy.radius * 0.68, -enemy.radius * 1.42);
+          ctx.stroke();
+          ctx.restore();
+        } else if (enemy.type === "spider") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          ctx.strokeStyle = "#17121a";
+          ctx.lineWidth = 2.3;
+          for (let i = -2; i <= 2; i += 1) {
+            if (i === 0) continue;
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.42, enemy.radius * i * 0.12);
+            ctx.lineTo(-enemy.radius * 1.08, enemy.radius * (i * 0.22));
+            ctx.lineTo(-enemy.radius * 1.32, enemy.radius * (i * 0.22 + 0.28));
+            ctx.moveTo(enemy.radius * 0.42, enemy.radius * i * 0.12);
+            ctx.lineTo(enemy.radius * 1.08, enemy.radius * (i * 0.22));
+            ctx.lineTo(enemy.radius * 1.32, enemy.radius * (i * 0.22 + 0.28));
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = "#4b3c4f";
+          ctx.strokeStyle = "#17121a";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 3, enemy.radius * 0.82, enemy.radius * 0.76, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.54, enemy.radius * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#d8f0d2";
+          ctx.beginPath();
+          ctx.arc(-enemy.radius * 0.16, -enemy.radius * 0.62, enemy.radius * 0.08, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 0.16, -enemy.radius * 0.62, enemy.radius * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+
+          ctx.fillStyle = enemy.type === "rhino" ? "#6a5546" : "#b84b46";
+          ctx.strokeStyle = "#241514";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 3, enemy.radius * 0.82, enemy.radius * 0.92, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = enemy.type === "rhino" ? "#8b725f" : "#d06a55";
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.66, enemy.radius * 0.48, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          if (enemy.type === "rhino") {
+            ctx.fillStyle = "#d6c5a0";
+            ctx.strokeStyle = "#241514";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -enemy.radius * 1.55);
+            ctx.lineTo(-enemy.radius * 0.2, -enemy.radius * 0.78);
+            ctx.lineTo(enemy.radius * 0.2, -enemy.radius * 0.78);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = "#241514";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, -enemy.radius * 1.04);
+          ctx.lineTo(-enemy.radius * 0.32, -enemy.radius * 1.42);
+          ctx.moveTo(0, -enemy.radius * 1.04);
+          ctx.lineTo(enemy.radius * 0.32, -enemy.radius * 1.42);
+          ctx.stroke();
+
+          for (let i = -1; i <= 1; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(-enemy.radius * 0.62, enemy.radius * i * 0.22);
+            ctx.lineTo(-enemy.radius * 1.08, enemy.radius * (i * 0.28 + 0.16));
+            ctx.moveTo(enemy.radius * 0.62, enemy.radius * i * 0.22);
+            ctx.lineTo(enemy.radius * 1.08, enemy.radius * (i * 0.28 + 0.16));
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = "rgba(36, 21, 20, 0.5)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -enemy.radius * 0.3);
+          ctx.lineTo(0, enemy.radius * 0.82);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        const hpWidth = enemy.radius * 2;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.46)";
+        ctx.fillRect(x - hpWidth / 2, y - enemy.radius - 13, hpWidth, 5);
+        ctx.fillStyle = "#ef5c5c";
+        ctx.fillRect(x - hpWidth / 2, y - enemy.radius - 13, hpWidth * Math.max(0, enemy.hp / enemy.maxHp), 5);
+      }
+    }
+
+    function drawProjectiles() {
+      for (const arrow of projectiles) {
+        const x = screenX(arrow.x);
+        const y = screenY(arrow.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(arrow.angle);
+        ctx.fillStyle = "#e8d8a1";
+        ctx.strokeStyle = "#533a26";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(14 * arrow.size, 0);
+        ctx.lineTo(-10 * arrow.size, -4 * arrow.size);
+        ctx.lineTo(-6 * arrow.size, 0);
+        ctx.lineTo(-10 * arrow.size, 4 * arrow.size);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const tadpole of tadpoles) {
+        const x = screenX(tadpole.x);
+        const y = screenY(tadpole.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(tadpole.angle + Math.sin(tadpole.wiggle) * 0.16);
+        ctx.fillStyle = "#6fcf8e";
+        ctx.strokeStyle = "#1f5b3d";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, tadpole.radius * 1.08, tadpole.radius * 0.72, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "#4daa72";
+        ctx.lineWidth = Math.max(2, tadpole.radius * 0.28);
+        ctx.beginPath();
+        ctx.moveTo(-tadpole.radius * 0.9, 0);
+        ctx.quadraticCurveTo(-tadpole.radius * 1.55, Math.sin(tadpole.wiggle) * tadpole.radius * 0.42, -tadpole.radius * 2.15, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = "#102516";
+        ctx.beginPath();
+        ctx.arc(tadpole.radius * 0.36, -tadpole.radius * 0.18, tadpole.radius * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (const drop of raindrops) {
+        const progress = 1 - clamp(drop.life / drop.maxLife, 0, 1);
+        const x = screenX(drop.x);
+        const y = screenY(drop.startY + (drop.y - drop.startY) * progress);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(drop.angle);
+        ctx.strokeStyle = "#aeefff";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(0, 12);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.78)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.lineTo(0, 5);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const shot of enemyProjectiles) {
+        const x = screenX(shot.x);
+        const y = screenY(shot.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "#f2d7a6";
+        ctx.strokeStyle = "#6b4930";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, shot.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 245, 210, 0.7)";
+        ctx.beginPath();
+        ctx.arc(-shot.radius * 0.25, -shot.radius * 0.25, shot.radius * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawLasers() {
+      for (const laser of lasers) {
+        const alpha = clamp(laser.life / laser.maxLife, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#74f2ff";
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(screenX(laser.x1), screenY(laser.y1));
+        ctx.lineTo(screenX(laser.x2), screenY(laser.y2));
+        ctx.stroke();
+
+        ctx.strokeStyle = "#f9ffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(screenX(laser.x1), screenY(laser.y1));
+        ctx.lineTo(screenX(laser.x2), screenY(laser.y2));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawTongues() {
+      for (const tongue of tongues) {
+        const target = enemyById.get(tongue.targetId);
+        if (!target) continue;
+        const alpha = clamp(tongue.life / tongue.maxLife, 0, 1);
+        const wiggle = Math.sin(tongue.phase) * 8;
+        const x1 = screenX(player.x);
+        const y1 = screenY(player.y);
+        const x2 = screenX(target.x);
+        const y2 = screenY(target.y);
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const angle = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+        const controlX = midX + Math.cos(angle) * wiggle;
+        const controlY = midY + Math.sin(angle) * wiggle;
+
+        ctx.save();
+        ctx.globalAlpha = 0.45 + alpha * 0.45;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "#8f1d28";
+        ctx.lineWidth = tongueWeapon.width + 8;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(controlX, controlY, x2, y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#e34255";
+        ctx.lineWidth = tongueWeapon.width;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(controlX, controlY, x2, y2);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ff7885";
+        ctx.beginPath();
+        ctx.arc(x2, y2, tongueWeapon.width * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawSlashes() {
+      for (const slash of slashes) {
+        const alpha = clamp(slash.life / slash.maxLife, 0, 1);
+        const x = screenX(slash.x);
+        const y = screenY(slash.y);
+        const inner = Math.max(22, slash.range * 0.38);
+        const outer = slash.range;
+        const start = slash.angle - slash.arc / 2;
+        const end = slash.angle + slash.arc / 2;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "rgba(255, 235, 160, 0.18)";
+        ctx.strokeStyle = "rgba(255, 248, 215, 0.9)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, outer, start, end);
+        ctx.arc(x, y, inner, end, start, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(245, 176, 82, 0.95)";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(x, y, outer - 6, start + 0.06, end - 0.06);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawAsteroids() {
+      for (const asteroid of asteroids) {
+        const alpha = clamp(Math.min(asteroid.life, 0.45) / 0.45, 0, 1);
+        const x = screenX(player.x + Math.cos(asteroid.angle) * asteroid.orbitRadius);
+        const y = screenY(player.y + Math.sin(asteroid.angle) * asteroid.orbitRadius);
+        const spin = world.time * 4 + asteroid.angle;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(x, y);
+        ctx.rotate(spin);
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+        ctx.beginPath();
+        ctx.ellipse(0, asteroid.radius * 0.9, asteroid.radius * 0.9, asteroid.radius * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#8f8a7a";
+        ctx.strokeStyle = "#efe0b4";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i += 1) {
+          const pointAngle = (Math.PI * 2 * i) / 8;
+          const r = asteroid.radius * (i % 2 === 0 ? 1 : 0.72);
+          const px = Math.cos(pointAngle) * r;
+          const py = Math.sin(pointAngle) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(42, 37, 30, 0.45)";
+        ctx.beginPath();
+        ctx.arc(-asteroid.radius * 0.2, -asteroid.radius * 0.16, asteroid.radius * 0.18, 0, Math.PI * 2);
+        ctx.arc(asteroid.radius * 0.28, asteroid.radius * 0.22, asteroid.radius * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawLightningOrbs() {
+      for (const orb of lightningOrbs) {
+        const x = screenX(orb.x);
+        const y = screenY(orb.y);
+        const flicker = Math.sin(orb.phase) * 0.08 + 1;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.globalAlpha = 0.26;
+        ctx.fillStyle = "#ffe86a";
+        ctx.beginPath();
+        ctx.arc(0, 0, orb.radius * 1.75 * flicker, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#ffd83d";
+        ctx.strokeStyle = "#fff6b0";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, orb.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "#fffce0";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        for (let i = 0; i < 4; i += 1) {
+          const angle = orb.phase + i * Math.PI * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * orb.radius * 0.25, Math.sin(angle) * orb.radius * 0.25);
+          ctx.lineTo(Math.cos(angle + 0.3) * orb.radius * 0.62, Math.sin(angle + 0.3) * orb.radius * 0.62);
+          ctx.lineTo(Math.cos(angle - 0.2) * orb.radius * 0.95, Math.sin(angle - 0.2) * orb.radius * 0.95);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.beginPath();
+        ctx.arc(-orb.radius * 0.28, -orb.radius * 0.32, orb.radius * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawEnergyRing() {
+      if (!energyRing.unlocked) return;
+      const x = screenX(player.x);
+      const y = screenY(player.y);
+      const pulse = 1 + Math.sin(world.time * 5) * 0.018;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = "#6ee7ff";
+      ctx.beginPath();
+      ctx.arc(0, 0, energyRing.radius * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = "#b8f7ff";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, energyRing.radius * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = "#5bd4ff";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([12, 16]);
+      ctx.lineDashOffset = -world.time * 42;
+      ctx.beginPath();
+      ctx.arc(0, 0, energyRing.radius * 0.92 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSkyLasers() {
+      if (!skyLaser.unlocked) return;
+      for (const beam of skyLasers) {
+        const target = enemyById.get(beam.targetId);
+        if (!target) continue;
+        const x = screenX(target.x);
+        const y = screenY(target.y);
+        const flicker = 1 + Math.sin(beam.shimmer) * 0.14;
+
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = "#fff7b8";
+        ctx.lineWidth = 26 * flicker;
+        ctx.beginPath();
+        ctx.moveTo(x, -30);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.72;
+        ctx.strokeStyle = "#ffe55e";
+        ctx.lineWidth = 10 * flicker;
+        ctx.beginPath();
+        ctx.moveTo(x, -30);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#fffdf0";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, -30);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255, 232, 86, 0.35)";
+        ctx.beginPath();
+        ctx.arc(x, y, target.radius * 1.35 * flicker, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawMines() {
+      for (const mine of mines) {
+        const x = screenX(mine.x);
+        const y = screenY(mine.y);
+        const blink = mine.armed > 0 ? 0.35 : 0.75 + Math.sin(mine.pulse) * 0.2;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+        ctx.beginPath();
+        ctx.ellipse(0, mine.radius * 0.38, mine.radius * 0.95, mine.radius * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#777b7b";
+        ctx.strokeStyle = "#232828";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, mine.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "#4b5050";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, mine.radius * 0.58, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(255, 75, 58, ${blink})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(3, mine.radius * 0.18), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (const explosion of explosions) {
+        const alpha = clamp(explosion.life / explosion.maxLife, 0, 1);
+        const x = screenX(explosion.x);
+        const y = screenY(explosion.y);
+        const radius = explosion.radius * (1.25 - alpha * 0.25);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = explosion.color ? "rgba(135, 215, 179, 0.26)" : "rgba(255, 169, 62, 0.24)";
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = explosion.color || "#ffd072";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.72, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawGems() {
+      for (const gem of gems) {
+        const x = screenX(gem.x);
+        const y = screenY(gem.y) + Math.sin(gem.bob) * 4;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = "#42d2ff";
+        ctx.strokeStyle = "#d9fbff";
+        ctx.lineWidth = 2;
+        ctx.fillRect(-gem.radius / 1.5, -gem.radius / 1.5, gem.radius * 1.35, gem.radius * 1.35);
+        ctx.strokeRect(-gem.radius / 1.5, -gem.radius / 1.5, gem.radius * 1.35, gem.radius * 1.35);
+        ctx.restore();
+      }
+    }
+
+    function drawHearts() {
+      for (const heart of hearts) {
+        const x = screenX(heart.x);
+        const y = screenY(heart.y) + Math.sin(heart.bob) * 5;
+        const size = heart.radius;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+        ctx.beginPath();
+        ctx.ellipse(0, size * 0.75, size * 0.8, size * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#f05464";
+        ctx.strokeStyle = "#ffd1d6";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, size * 0.75);
+        ctx.bezierCurveTo(-size * 1.45, -size * 0.15, -size * 0.72, -size * 1.1, 0, -size * 0.42);
+        ctx.bezierCurveTo(size * 0.72, -size * 1.1, size * 1.45, -size * 0.15, 0, size * 0.75);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawPuddles() {
+      for (const puddle of puddles) {
+        const alpha = clamp(puddle.life / puddle.maxLife, 0, 1);
+        const x = screenX(puddle.x);
+        const y = screenY(puddle.y);
+        const pulse = Math.sin(puddle.ripple) * puddle.radius * 0.04;
+
+        ctx.save();
+        ctx.globalAlpha = 0.22 + alpha * 0.38;
+        ctx.fillStyle = "#5ab9d6";
+        ctx.strokeStyle = "rgba(178, 239, 247, 0.75)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(x, y, puddle.radius + pulse, puddle.radius * 0.58 + pulse * 0.35, Math.sin(puddle.ripple * 0.5) * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.18 + alpha * 0.22;
+        ctx.strokeStyle = "#d2fbff";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(x - puddle.radius * 0.18, y - puddle.radius * 0.06, puddle.radius * 0.42, puddle.radius * 0.16, -0.16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawFloatText() {
+      ctx.font = "700 14px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      for (const item of floatText) {
+        ctx.globalAlpha = clamp(item.life * 2, 0, 1);
+        ctx.fillStyle = item.heal ? "#64f58e" : item.danger ? "#ff8a7a" : item.text === "+EXP" ? "#83e4ff" : "#fff1a9";
+        ctx.fillText(item.text, screenX(item.x), screenY(item.y));
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function draw() {
+      drawGround();
+      drawPuddles();
+      drawGems();
+      drawHearts();
+      drawMines();
+      drawEnergyRing();
+      drawSkyLasers();
+      drawLasers();
+      drawTongues();
+      drawSlashes();
+      drawAsteroids();
+      drawLightningOrbs();
+      drawProjectiles();
+      drawEnemies();
+      drawPlayer();
+      drawFloatText();
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("keydown", (event) => {
+      keys.add(event.code);
+      if (event.code === "Space" && ui.levelUp.classList.contains("show")) {
+        const first = ui.upgradeGrid.querySelector("button");
+        if (first) first.click();
+      }
+    });
+    window.addEventListener("keyup", (event) => keys.delete(event.code));
+
+    canvas.addEventListener("pointerdown", (event) => {
+      pointer.active = true;
+      pointer.id = event.pointerId;
+      pointer.startX = event.clientX;
+      pointer.startY = event.clientY;
+      pointer.dx = 0;
+      pointer.dy = 0;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!pointer.active || pointer.id !== event.pointerId) return;
+      const rawX = event.clientX - pointer.startX;
+      const rawY = event.clientY - pointer.startY;
+      const length = Math.hypot(rawX, rawY);
+      const max = 40;
+      pointer.dx = length > 0 ? rawX / Math.max(max, length) : 0;
+      pointer.dy = length > 0 ? rawY / Math.max(max, length) : 0;
+      ui.touchStick.style.setProperty("--stick-x", `${clamp(rawX, -max, max)}px`);
+      ui.touchStick.style.setProperty("--stick-y", `${clamp(rawY, -max, max)}px`);
+    });
+
+    canvas.addEventListener("pointerup", endPointer);
+    canvas.addEventListener("pointercancel", endPointer);
+    ui.restart.addEventListener("click", restartRun);
+
+    function endPointer(event) {
+      if (pointer.id !== event.pointerId) return;
+      pointer.active = false;
+      pointer.id = null;
+      pointer.dx = 0;
+      pointer.dy = 0;
+      ui.touchStick.style.setProperty("--stick-x", "0px");
+      ui.touchStick.style.setProperty("--stick-y", "0px");
+    }
+
+    resize();
+    updateUi();
+    for (let i = 0; i < 6; i += 1) spawnEnemy();
+    openUpgradeChoice();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
