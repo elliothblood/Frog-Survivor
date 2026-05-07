@@ -305,6 +305,7 @@
         <div class="pill weapon" id="puddlePill" hidden><small>Puddle</small><span id="puddle">-</span></div>
         <div class="pill weapon" id="rainPill" hidden><small>Rain</small><span id="rain">-</span></div>
         <div class="pill weapon" id="bananaPill" hidden><small>Banana</small><span id="banana">-</span></div>
+        <div class="pill weapon" id="shockPill" hidden><small>Shock</small><span id="shock">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -362,6 +363,7 @@
       puddle: document.querySelector("#puddle"),
       rain: document.querySelector("#rain"),
       banana: document.querySelector("#banana"),
+      shock: document.querySelector("#shock"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -374,6 +376,7 @@
       puddlePill: document.querySelector("#puddlePill"),
       rainPill: document.querySelector("#rainPill"),
       bananaPill: document.querySelector("#bananaPill"),
+      shockPill: document.querySelector("#shockPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -559,6 +562,18 @@
       timer: 0,
     };
 
+    const shockWaveWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 28,
+      size: 1,
+      count: 1,
+      cooldown: 1.35,
+      speed: 360,
+      duration: 1.65,
+      timer: 0,
+    };
+
     const enemies = [];
     const projectiles = [];
     const tadpoles = [];
@@ -566,6 +581,7 @@
     const puddles = [];
     const raindrops = [];
     const bananas = [];
+    const shockWaves = [];
     const enemyProjectiles = [];
     const lasers = [];
     const slashes = [];
@@ -1271,6 +1287,57 @@
           bananaWeapon.count += 1;
         },
       },
+      {
+        name: "Shock Waves",
+        text: "Send yellow curved waves through enemies.",
+        weapon: "shock",
+        unlock: true,
+        available: () => !shockWaveWeapon.unlocked,
+        apply: () => {
+          shockWaveWeapon.unlocked = true;
+          shockWaveWeapon.level = 1;
+          shockWaveWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Louder Boom",
+        text: "Shock wave damage +8.",
+        weapon: "shock",
+        available: () => shockWaveWeapon.unlocked,
+        apply: () => shockWaveWeapon.damage += 8,
+      },
+      {
+        name: "Wider Wave",
+        text: "Shock wave size +18%.",
+        weapon: "shock",
+        available: () => shockWaveWeapon.unlocked,
+        apply: () => shockWaveWeapon.size *= 1.18,
+      },
+      {
+        name: "Quick Pulse",
+        text: "Shock waves fire 18% faster.",
+        weapon: "shock",
+        available: () => shockWaveWeapon.unlocked,
+        apply: () => shockWaveWeapon.cooldown = Math.max(0.42, shockWaveWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Echo Pulse",
+        text: "Fire one additional shock wave per blast.",
+        weapon: "shock",
+        available: () => shockWaveWeapon.unlocked,
+        apply: () => shockWaveWeapon.count += 1,
+      },
+      {
+        name: "Rolling Thunder",
+        text: "Shock wave damage +4, size +10%, and one extra wave.",
+        weapon: "shock",
+        available: () => shockWaveWeapon.unlocked,
+        apply: () => {
+          shockWaveWeapon.damage += 4;
+          shockWaveWeapon.size *= 1.1;
+          shockWaveWeapon.count += 1;
+        },
+      },
     ];
 
     function resize() {
@@ -1356,7 +1423,8 @@
         + (tongueWeapon.unlocked ? 1 : 0)
         + (puddleWeapon.unlocked ? 1 : 0)
         + (rainWeapon.unlocked ? 1 : 0)
-        + (bananaWeapon.unlocked ? 1 : 0);
+        + (bananaWeapon.unlocked ? 1 : 0)
+        + (shockWaveWeapon.unlocked ? 1 : 0);
     }
 
     function updateUi() {
@@ -1377,6 +1445,7 @@
       ui.puddlePill.hidden = !puddleWeapon.unlocked;
       ui.rainPill.hidden = !rainWeapon.unlocked;
       ui.bananaPill.hidden = !bananaWeapon.unlocked;
+      ui.shockPill.hidden = !shockWaveWeapon.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -1389,6 +1458,7 @@
       ui.puddle.textContent = puddleWeapon.unlocked ? puddleWeapon.level : "-";
       ui.rain.textContent = rainWeapon.unlocked ? rainWeapon.level : "-";
       ui.banana.textContent = bananaWeapon.unlocked ? bananaWeapon.level : "-";
+      ui.shock.textContent = shockWaveWeapon.unlocked ? shockWaveWeapon.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -1984,6 +2054,35 @@
       }
     }
 
+    function fireShockWaves() {
+      if (!shockWaveWeapon.unlocked) return;
+      const target = findTarget(760) || randomVisibleEnemy();
+      if (!target) return;
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(1.12, 0.24 * (shockWaveWeapon.count - 1));
+      for (let i = 0; i < shockWaveWeapon.count; i += 1) {
+        const offset = shockWaveWeapon.count === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (shockWaveWeapon.count - 1);
+        const angle = baseAngle + offset;
+        shockWaves.push({
+          x: player.x + Math.cos(angle) * 28,
+          y: player.y + Math.sin(angle) * 28,
+          vx: Math.cos(angle) * shockWaveWeapon.speed,
+          vy: Math.sin(angle) * shockWaveWeapon.speed,
+          angle,
+          radius: 42 * shockWaveWeapon.size,
+          thickness: 17 * shockWaveWeapon.size,
+          arc: Math.PI * 0.86,
+          damage: shockWaveWeapon.damage,
+          life: shockWaveWeapon.duration,
+          maxLife: shockWaveWeapon.duration,
+          phase: Math.random() * Math.PI * 2,
+          hitIds: new Set(),
+        });
+      }
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -2187,6 +2286,7 @@
             if (upgrade.weapon === "puddle") puddleWeapon.level += 1;
             if (upgrade.weapon === "rain") rainWeapon.level += 1;
             if (upgrade.weapon === "banana") bananaWeapon.level += 1;
+            if (upgrade.weapon === "shock") shockWaveWeapon.level += 1;
           }
           ui.levelUp.classList.remove("show");
           if (world.pendingUpgrades > 0) {
@@ -2223,6 +2323,7 @@
       puddleWeapon.timer -= dt;
       rainWeapon.timer -= dt;
       bananaWeapon.timer -= dt;
+      shockWaveWeapon.timer -= dt;
       player.hurtTimer = Math.max(0, player.hurtTimer - dt);
 
       const move = getMoveVector();
@@ -2317,6 +2418,11 @@
       if (bananaWeapon.unlocked && bananaWeapon.timer <= 0) {
         fireBananas();
         bananaWeapon.timer = bananaWeapon.cooldown;
+      }
+
+      if (shockWaveWeapon.unlocked && shockWaveWeapon.timer <= 0) {
+        fireShockWaves();
+        shockWaveWeapon.timer = shockWaveWeapon.cooldown;
       }
 
       for (let i = projectiles.length - 1; i >= 0; i -= 1) {
@@ -2428,6 +2534,34 @@
 
         if (banana.life <= 0 || (t > 0.82 && distanceSq(banana, player) < (player.radius + banana.radius) * (player.radius + banana.radius))) {
           bananas.splice(i, 1);
+        }
+      }
+
+      for (let i = shockWaves.length - 1; i >= 0; i -= 1) {
+        const wave = shockWaves[i];
+        wave.x += wave.vx * dt;
+        wave.y += wave.vy * dt;
+        wave.life -= dt;
+        wave.phase += dt * 10;
+
+        const searchRange = wave.radius + wave.thickness + 36;
+        for (const enemy of nearbyEnemies(wave.x, wave.y, searchRange)) {
+          if (enemy.dead || wave.hitIds.has(enemy.id)) continue;
+          const dx = enemy.x - wave.x;
+          const dy = enemy.y - wave.y;
+          const dist = Math.hypot(dx, dy);
+          const band = wave.thickness + enemy.radius;
+          if (Math.abs(dist - wave.radius) > band) continue;
+          const enemyAngle = Math.atan2(dy, dx);
+          if (Math.abs(angleDifference(enemyAngle, wave.angle)) > wave.arc / 2) continue;
+          enemy.hp -= wave.damage;
+          wave.hitIds.add(enemy.id);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(wave.damage), life: 0.42 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+
+        if (wave.life <= 0 || wave.x < -120 || wave.x > world.width + 120 || wave.y < -120 || wave.y > world.height + 120) {
+          shockWaves.splice(i, 1);
         }
       }
 
@@ -2757,7 +2891,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -2899,6 +3033,16 @@
       bananaWeapon.duration = 1.55;
       bananaWeapon.timer = 0;
 
+      shockWaveWeapon.unlocked = false;
+      shockWaveWeapon.level = 0;
+      shockWaveWeapon.damage = 28;
+      shockWaveWeapon.size = 1;
+      shockWaveWeapon.count = 1;
+      shockWaveWeapon.cooldown = 1.35;
+      shockWaveWeapon.speed = 360;
+      shockWaveWeapon.duration = 1.65;
+      shockWaveWeapon.timer = 0;
+
       enemies.length = 0;
       projectiles.length = 0;
       tadpoles.length = 0;
@@ -2906,6 +3050,7 @@
       puddles.length = 0;
       raindrops.length = 0;
       bananas.length = 0;
+      shockWaves.length = 0;
       enemyProjectiles.length = 0;
       lasers.length = 0;
       slashes.length = 0;
@@ -3746,6 +3891,36 @@
           ctx.arc(banana.radius * 0.96, banana.radius * 0.12, banana.radius * 0.12, 0, Math.PI * 2);
           ctx.fill();
         }
+        ctx.restore();
+      }
+
+      for (const wave of shockWaves) {
+        const x = screenX(wave.x);
+        const y = screenY(wave.y);
+        const age = 1 - clamp(wave.life / wave.maxLife, 0, 1);
+        const alpha = clamp(wave.life / 0.32, 0, 1);
+        const wobble = Math.sin(wave.phase) * wave.thickness * 0.18;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(wave.angle);
+        ctx.lineCap = "round";
+        ctx.strokeStyle = `rgba(255, 239, 82, ${0.86 * alpha})`;
+        ctx.lineWidth = wave.thickness;
+        ctx.beginPath();
+        ctx.arc(0, wobble, wave.radius, -wave.arc / 2, wave.arc / 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 255, 190, ${0.62 * alpha})`;
+        ctx.lineWidth = Math.max(2, wave.thickness * 0.34);
+        ctx.beginPath();
+        ctx.arc(0, wobble, wave.radius + wave.thickness * 0.18, -wave.arc / 2, wave.arc / 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 197, 39, ${0.28 * alpha})`;
+        ctx.lineWidth = Math.max(2, wave.thickness * 0.28);
+        ctx.beginPath();
+        ctx.arc(0, wobble, wave.radius - wave.thickness * (0.75 + age * 0.2), -wave.arc / 2, wave.arc / 2);
+        ctx.stroke();
         ctx.restore();
       }
 
