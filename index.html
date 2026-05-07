@@ -1629,6 +1629,14 @@
       return Math.atan2(Math.sin(a - b), Math.cos(a - b));
     }
 
+    function tongueMouthPoint(target = null) {
+      const angle = target ? Math.atan2(target.y - player.y, target.x - player.x) : 0;
+      return {
+        x: player.x + Math.cos(angle) * 4,
+        y: player.y + 4 + Math.sin(angle) * 2,
+      };
+    }
+
     function ownedWeaponCount() {
       return (crossbow.unlocked ? 1 : 0)
         + (wand.unlocked ? 1 : 0)
@@ -3038,7 +3046,7 @@
         }
 
         if (target && tongue.tick <= 0) {
-          const a = { x: player.x, y: player.y };
+          const a = tongueMouthPoint(target);
           const b = { x: target.x, y: target.y };
           const hitIds = new Set([target.id]);
           damageEnemy(target, tongueWeapon.damage);
@@ -4603,8 +4611,9 @@
         if (!target) continue;
         const alpha = clamp(tongue.life / tongue.maxLife, 0, 1);
         const wiggle = Math.sin(tongue.phase) * 8;
-        const x1 = screenX(player.x);
-        const y1 = screenY(player.y);
+        const mouth = tongueMouthPoint(target);
+        const x1 = screenX(mouth.x);
+        const y1 = screenY(mouth.y);
         const x2 = screenX(target.x);
         const y2 = screenY(target.y);
         const midX = (x1 + x2) / 2;
@@ -4634,6 +4643,11 @@
         ctx.fillStyle = "#ff7885";
         ctx.beginPath();
         ctx.arc(x2, y2, tongueWeapon.width * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#e34255";
+        ctx.beginPath();
+        ctx.arc(x1, y1, Math.max(2, tongueWeapon.width * 0.3), 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -4691,15 +4705,7 @@
         ctx.strokeStyle = "#efe0b4";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        for (let i = 0; i < 8; i += 1) {
-          const pointAngle = (Math.PI * 2 * i) / 8;
-          const r = asteroid.radius * (i % 2 === 0 ? 1 : 0.72);
-          const px = Math.cos(pointAngle) * r;
-          const py = Math.sin(pointAngle) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
+        ctx.arc(0, 0, asteroid.radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
