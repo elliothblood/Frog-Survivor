@@ -307,6 +307,7 @@
         <div class="pill weapon" id="bananaPill" hidden><small>Banana</small><span id="banana">-</span></div>
         <div class="pill weapon" id="shockPill" hidden><small>Shock</small><span id="shock">-</span></div>
         <div class="pill weapon" id="fireballPill" hidden><small>Fire</small><span id="fireball">-</span></div>
+        <div class="pill weapon" id="iciclePill" hidden><small>Ice</small><span id="icicle">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -366,6 +367,7 @@
       banana: document.querySelector("#banana"),
       shock: document.querySelector("#shock"),
       fireball: document.querySelector("#fireball"),
+      icicle: document.querySelector("#icicle"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -380,6 +382,7 @@
       bananaPill: document.querySelector("#bananaPill"),
       shockPill: document.querySelector("#shockPill"),
       fireballPill: document.querySelector("#fireballPill"),
+      iciclePill: document.querySelector("#iciclePill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -589,6 +592,18 @@
       timer: 0,
     };
 
+    const icicleWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 10,
+      slow: 0.12,
+      splashRadius: 52,
+      count: 1,
+      cooldown: 1.05,
+      speed: 430,
+      timer: 0,
+    };
+
     const enemies = [];
     const projectiles = [];
     const tadpoles = [];
@@ -598,6 +613,7 @@
     const bananas = [];
     const shockWaves = [];
     const fireballs = [];
+    const icicles = [];
     const enemyProjectiles = [];
     const lasers = [];
     const slashes = [];
@@ -1409,6 +1425,57 @@
           fireballWeapon.count += 1;
         },
       },
+      {
+        name: "Icicles",
+        text: "Shoot icicles that splash and stack slowing ice on enemies.",
+        weapon: "icicle",
+        unlock: true,
+        available: () => !icicleWeapon.unlocked,
+        apply: () => {
+          icicleWeapon.unlocked = true;
+          icicleWeapon.level = 1;
+          icicleWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Sharper Ice",
+        text: "Icicle splash damage +4.",
+        weapon: "icicle",
+        available: () => icicleWeapon.unlocked,
+        apply: () => icicleWeapon.damage += 4,
+      },
+      {
+        name: "Frost Burst",
+        text: "Icicle splash size +18%.",
+        weapon: "icicle",
+        available: () => icicleWeapon.unlocked,
+        apply: () => icicleWeapon.splashRadius *= 1.18,
+      },
+      {
+        name: "Quick Freeze",
+        text: "Icicles fire 18% faster.",
+        weapon: "icicle",
+        available: () => icicleWeapon.unlocked,
+        apply: () => icicleWeapon.cooldown = Math.max(0.36, icicleWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Ice Storm",
+        text: "Shoot one additional icicle per volley.",
+        weapon: "icicle",
+        available: () => icicleWeapon.unlocked,
+        apply: () => icicleWeapon.count += 1,
+      },
+      {
+        name: "Deep Freeze",
+        text: "Icicle damage +2, splash size +10%, and one extra icicle.",
+        weapon: "icicle",
+        available: () => icicleWeapon.unlocked,
+        apply: () => {
+          icicleWeapon.damage += 2;
+          icicleWeapon.splashRadius *= 1.1;
+          icicleWeapon.count += 1;
+        },
+      },
     ];
 
     function resize() {
@@ -1496,7 +1563,8 @@
         + (rainWeapon.unlocked ? 1 : 0)
         + (bananaWeapon.unlocked ? 1 : 0)
         + (shockWaveWeapon.unlocked ? 1 : 0)
-        + (fireballWeapon.unlocked ? 1 : 0);
+        + (fireballWeapon.unlocked ? 1 : 0)
+        + (icicleWeapon.unlocked ? 1 : 0);
     }
 
     function updateUi() {
@@ -1519,6 +1587,7 @@
       ui.bananaPill.hidden = !bananaWeapon.unlocked;
       ui.shockPill.hidden = !shockWaveWeapon.unlocked;
       ui.fireballPill.hidden = !fireballWeapon.unlocked;
+      ui.iciclePill.hidden = !icicleWeapon.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -1533,6 +1602,7 @@
       ui.banana.textContent = bananaWeapon.unlocked ? bananaWeapon.level : "-";
       ui.shock.textContent = shockWaveWeapon.unlocked ? shockWaveWeapon.level : "-";
       ui.fireball.textContent = fireballWeapon.unlocked ? fireballWeapon.level : "-";
+      ui.icicle.textContent = icicleWeapon.unlocked ? icicleWeapon.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -2164,6 +2234,12 @@
       enemy.burnTick = Math.min(enemy.burnTick || 0.38, 0.38);
     }
 
+    function applyIce(enemy, slow) {
+      enemy.iceStacks = (enemy.iceStacks || 0) + 1;
+      enemy.iceSlow = (enemy.iceSlow || 0) + slow;
+      enemy.iceTime = Math.max(enemy.iceTime || 0, 3.2);
+    }
+
     function splashFireball(ball) {
       explosions.push({
         x: ball.x,
@@ -2206,6 +2282,55 @@
           damage: fireballWeapon.damage,
           burnDamage: fireballWeapon.burnDamage,
           splashRadius: fireballWeapon.splashRadius,
+          life: 2.2,
+          angle,
+          spin: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function splashIcicle(ice) {
+      explosions.push({
+        x: ice.x,
+        y: ice.y,
+        radius: ice.splashRadius,
+        life: 0.32,
+        maxLife: 0.32,
+        color: "#9fe8ff",
+      });
+
+      for (const enemy of nearbyEnemies(ice.x, ice.y, ice.splashRadius + 42)) {
+        if (enemy.dead) continue;
+        const hitRange = ice.splashRadius + enemy.radius;
+        if (distanceSq(enemy, ice) < hitRange * hitRange) {
+          enemy.hp -= ice.damage;
+          applyIce(enemy, ice.slow);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(ice.damage), life: 0.42 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
+    function fireIcicles() {
+      if (!icicleWeapon.unlocked) return;
+      const target = findTarget(720) || randomVisibleEnemy();
+      if (!target) return;
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(0.78, 0.18 * (icicleWeapon.count - 1));
+      for (let i = 0; i < icicleWeapon.count; i += 1) {
+        const offset = icicleWeapon.count === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (icicleWeapon.count - 1);
+        const angle = baseAngle + offset;
+        icicles.push({
+          x: player.x + Math.cos(angle) * 26,
+          y: player.y + Math.sin(angle) * 26,
+          vx: Math.cos(angle) * icicleWeapon.speed,
+          vy: Math.sin(angle) * icicleWeapon.speed,
+          radius: 8,
+          damage: icicleWeapon.damage,
+          slow: icicleWeapon.slow,
+          splashRadius: icicleWeapon.splashRadius,
           life: 2.2,
           angle,
           spin: Math.random() * Math.PI * 2,
@@ -2418,6 +2543,7 @@
             if (upgrade.weapon === "banana") bananaWeapon.level += 1;
             if (upgrade.weapon === "shock") shockWaveWeapon.level += 1;
             if (upgrade.weapon === "fireball") fireballWeapon.level += 1;
+            if (upgrade.weapon === "icicle") icicleWeapon.level += 1;
           }
           ui.levelUp.classList.remove("show");
           if (world.pendingUpgrades > 0) {
@@ -2456,6 +2582,7 @@
       bananaWeapon.timer -= dt;
       shockWaveWeapon.timer -= dt;
       fireballWeapon.timer -= dt;
+      icicleWeapon.timer -= dt;
       player.hurtTimer = Math.max(0, player.hurtTimer - dt);
 
       const move = getMoveVector();
@@ -2562,6 +2689,11 @@
         fireballWeapon.timer = fireballWeapon.cooldown;
       }
 
+      if (icicleWeapon.unlocked && icicleWeapon.timer <= 0) {
+        fireIcicles();
+        icicleWeapon.timer = icicleWeapon.cooldown;
+      }
+
       for (let i = projectiles.length - 1; i >= 0; i -= 1) {
         const arrow = projectiles[i];
         arrow.x += arrow.vx * dt;
@@ -2651,6 +2783,29 @@
 
         if (hit || ball.life <= 0 || ball.x < -80 || ball.x > world.width + 80 || ball.y < -80 || ball.y > world.height + 80) {
           fireballs.splice(i, 1);
+        }
+      }
+
+      for (let i = icicles.length - 1; i >= 0; i -= 1) {
+        const ice = icicles[i];
+        ice.x += ice.vx * dt;
+        ice.y += ice.vy * dt;
+        ice.life -= dt;
+        ice.spin += dt * 8;
+
+        let hit = false;
+        for (const enemy of nearbyEnemies(ice.x, ice.y, ice.radius + 34)) {
+          if (enemy.dead) continue;
+          const hitRange = ice.radius + enemy.radius;
+          if (distanceSq(ice, enemy) < hitRange * hitRange) {
+            splashIcicle(ice);
+            hit = true;
+            break;
+          }
+        }
+
+        if (hit || ice.life <= 0 || ice.x < -80 || ice.x > world.width + 80 || ice.y < -80 || ice.y > world.height + 80) {
+          icicles.splice(i, 1);
         }
       }
 
@@ -2975,8 +3130,15 @@
           enemy.burnStacks = 0;
           enemy.burnDamage = 0;
         }
+        if (enemy.iceTime > 0 && enemy.iceSlow > 0) {
+          enemy.iceTime -= dt;
+        } else if (enemy.iceStacks) {
+          enemy.iceStacks = 0;
+          enemy.iceSlow = 0;
+        }
         const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
         let slowAmount = 0;
+        if (enemy.iceTime > 0) slowAmount = Math.max(slowAmount, enemy.iceSlow);
         for (const puddle of puddles) {
           const touchRange = puddle.radius + enemy.radius * 0.5;
           if (distanceSq(enemy, puddle) < touchRange * touchRange) {
@@ -3068,7 +3230,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -3230,6 +3392,16 @@
       fireballWeapon.speed = 390;
       fireballWeapon.timer = 0;
 
+      icicleWeapon.unlocked = false;
+      icicleWeapon.level = 0;
+      icicleWeapon.damage = 10;
+      icicleWeapon.slow = 0.12;
+      icicleWeapon.splashRadius = 52;
+      icicleWeapon.count = 1;
+      icicleWeapon.cooldown = 1.05;
+      icicleWeapon.speed = 430;
+      icicleWeapon.timer = 0;
+
       enemies.length = 0;
       projectiles.length = 0;
       tadpoles.length = 0;
@@ -3239,6 +3411,7 @@
       bananas.length = 0;
       shockWaves.length = 0;
       fireballs.length = 0;
+      icicles.length = 0;
       enemyProjectiles.length = 0;
       lasers.length = 0;
       slashes.length = 0;
@@ -3983,6 +4156,28 @@
           ctx.restore();
         }
 
+        if (enemy.iceTime > 0 && enemy.iceStacks > 0) {
+          const shardCount = Math.min(5, enemy.iceStacks);
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          ctx.strokeStyle = "rgba(165, 237, 255, 0.84)";
+          ctx.fillStyle = "rgba(210, 250, 255, 0.78)";
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < shardCount; i += 1) {
+            const angle = (Math.PI * 2 * i) / shardCount + enemy.pulse * 0.08;
+            const px = Math.cos(angle) * enemy.radius * 0.65;
+            const py = Math.sin(angle) * enemy.radius * 0.65;
+            ctx.beginPath();
+            ctx.moveTo(px, py - enemy.radius * 0.22);
+            ctx.lineTo(px - enemy.radius * 0.12, py + enemy.radius * 0.12);
+            ctx.lineTo(px + enemy.radius * 0.12, py + enemy.radius * 0.12);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
         const hpWidth = enemy.radius * 2;
         ctx.fillStyle = "rgba(0, 0, 0, 0.46)";
         ctx.fillRect(x - hpWidth / 2, y - enemy.radius - 13, hpWidth, 5);
@@ -4091,6 +4286,36 @@
         ctx.beginPath();
         ctx.moveTo(-ball.radius * 0.85, 0);
         ctx.quadraticCurveTo(-ball.radius * 1.7, Math.sin(ball.spin) * ball.radius * 0.55, -ball.radius * 2.45, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const ice of icicles) {
+        const x = screenX(ice.x);
+        const y = screenY(ice.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ice.angle + Math.sin(ice.spin) * 0.08);
+        ctx.fillStyle = "rgba(155, 232, 255, 0.18)";
+        ctx.beginPath();
+        ctx.arc(0, 0, ice.radius * 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#bdf4ff";
+        ctx.strokeStyle = "#247b9b";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ice.radius * 1.6, 0);
+        ctx.lineTo(-ice.radius * 0.45, -ice.radius * 0.72);
+        ctx.lineTo(-ice.radius * 0.9, 0);
+        ctx.lineTo(-ice.radius * 0.45, ice.radius * 0.72);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(230, 252, 255, 0.85)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(ice.radius * 0.9, 0);
+        ctx.lineTo(-ice.radius * 0.35, 0);
         ctx.stroke();
         ctx.restore();
       }
