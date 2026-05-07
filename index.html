@@ -308,6 +308,7 @@
         <div class="pill weapon" id="shockPill" hidden><small>Shock</small><span id="shock">-</span></div>
         <div class="pill weapon" id="fireballPill" hidden><small>Fire</small><span id="fireball">-</span></div>
         <div class="pill weapon" id="iciclePill" hidden><small>Ice</small><span id="icicle">-</span></div>
+        <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -368,6 +369,7 @@
       shock: document.querySelector("#shock"),
       fireball: document.querySelector("#fireball"),
       icicle: document.querySelector("#icicle"),
+      potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -383,6 +385,7 @@
       shockPill: document.querySelector("#shockPill"),
       fireballPill: document.querySelector("#fireballPill"),
       iciclePill: document.querySelector("#iciclePill"),
+      potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -602,6 +605,28 @@
       cooldown: 1.05,
       speed: 430,
       timer: 0,
+    };
+
+    const healingPotion = {
+      unlocked: false,
+      level: 0,
+      heal: 14,
+      cooldown: 8.5,
+      boonChance: 0.16,
+      damageBoost: 0.12,
+      effectChance: 0,
+      fireEffect: 0,
+      iceEffect: 0,
+      timer: 0,
+    };
+
+    const potionBuff = {
+      damageTime: 0,
+      damageBoost: 0,
+      fireTime: 0,
+      fireDamage: 0,
+      iceTime: 0,
+      iceSlow: 0,
     };
 
     const enemies = [];
@@ -1476,6 +1501,62 @@
           icicleWeapon.count += 1;
         },
       },
+      {
+        name: "Healing Potion",
+        text: "Periodically heal the frog instead of damaging enemies.",
+        weapon: "potion",
+        unlock: true,
+        available: () => !healingPotion.unlocked,
+        apply: () => {
+          healingPotion.unlocked = true;
+          healingPotion.level = 1;
+          healingPotion.timer = 1.2;
+        },
+      },
+      {
+        name: "Bigger Sip",
+        text: "Healing potion restores 8 more health.",
+        weapon: "potion",
+        available: () => healingPotion.unlocked,
+        apply: () => healingPotion.heal += 8,
+      },
+      {
+        name: "Quick Brew",
+        text: "Healing potion activates 18% more often.",
+        weapon: "potion",
+        available: () => healingPotion.unlocked,
+        apply: () => healingPotion.cooldown = Math.max(2.8, healingPotion.cooldown * 0.82),
+      },
+      {
+        name: "Battle Tonic",
+        text: "Potion has a better chance to briefly boost all weapon damage.",
+        weapon: "potion",
+        available: () => healingPotion.unlocked,
+        apply: () => {
+          healingPotion.boonChance = Math.min(0.5, healingPotion.boonChance + 0.08);
+          healingPotion.damageBoost += 0.04;
+        },
+      },
+      {
+        name: "Ember Draught",
+        text: "Potion can briefly add a small fire effect to attacks.",
+        weapon: "potion",
+        available: () => healingPotion.unlocked,
+        apply: () => {
+          healingPotion.effectChance = Math.min(0.55, healingPotion.effectChance + 0.14);
+          healingPotion.fireEffect += 1.2;
+        },
+      },
+      {
+        name: "Frost Draught",
+        text: "Potion can briefly add a small ice effect to attacks.",
+        weapon: "potion",
+        available: () => healingPotion.unlocked,
+        apply: () => {
+          healingPotion.effectChance = Math.min(0.55, healingPotion.effectChance + 0.14);
+          healingPotion.iceEffect += 0.04;
+        },
+      },
     ];
 
     function resize() {
@@ -1564,7 +1645,8 @@
         + (bananaWeapon.unlocked ? 1 : 0)
         + (shockWaveWeapon.unlocked ? 1 : 0)
         + (fireballWeapon.unlocked ? 1 : 0)
-        + (icicleWeapon.unlocked ? 1 : 0);
+        + (icicleWeapon.unlocked ? 1 : 0)
+        + (healingPotion.unlocked ? 1 : 0);
     }
 
     function updateUi() {
@@ -1588,6 +1670,7 @@
       ui.shockPill.hidden = !shockWaveWeapon.unlocked;
       ui.fireballPill.hidden = !fireballWeapon.unlocked;
       ui.iciclePill.hidden = !icicleWeapon.unlocked;
+      ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -1603,6 +1686,7 @@
       ui.shock.textContent = shockWaveWeapon.unlocked ? shockWaveWeapon.level : "-";
       ui.fireball.textContent = fireballWeapon.unlocked ? fireballWeapon.level : "-";
       ui.icicle.textContent = icicleWeapon.unlocked ? icicleWeapon.level : "-";
+      ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -1928,7 +2012,7 @@
       let jumps = wand.ricochet;
 
       while (target) {
-        target.hp -= wand.damage;
+        damageEnemy(target, wand.damage);
         hitIds.add(target.id);
         lasers.push({
           x1: origin.x,
@@ -1991,7 +2075,7 @@
           if (d > hitRange * hitRange) continue;
           const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
           if (Math.abs(angleDifference(enemyAngle, angle)) <= sword.arc / 2) {
-            enemy.hp -= sword.damage;
+            damageEnemy(enemy, sword.damage);
             hitIds.add(enemy.id);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(sword.damage), life: 0.45 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -2158,7 +2242,7 @@
         if (enemy.dead) continue;
         const hitRange = drop.radius + enemy.radius;
         if (distanceSq(enemy, drop) < hitRange * hitRange) {
-          enemy.hp -= drop.damage;
+          damageEnemy(enemy, drop.damage);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(drop.damage), life: 0.42 });
           if (enemy.hp <= 0) killEnemy(enemy);
         }
@@ -2240,6 +2324,48 @@
       enemy.iceTime = Math.max(enemy.iceTime || 0, 3.2);
     }
 
+    function damageEnemy(enemy, amount, options = {}) {
+      const allowPotionEffects = options.potionEffects !== false;
+      const boosted = allowPotionEffects && potionBuff.damageTime > 0
+        ? amount * (1 + potionBuff.damageBoost)
+        : amount;
+      enemy.hp -= boosted;
+      if (allowPotionEffects && potionBuff.fireTime > 0 && potionBuff.fireDamage > 0) {
+        applyBurn(enemy, potionBuff.fireDamage);
+      }
+      if (allowPotionEffects && potionBuff.iceTime > 0 && potionBuff.iceSlow > 0) {
+        applyIce(enemy, potionBuff.iceSlow);
+      }
+      return boosted;
+    }
+
+    function triggerHealingPotion() {
+      if (!healingPotion.unlocked) return;
+      const missingHealth = player.maxHp - player.hp;
+      const healed = Math.min(missingHealth, healingPotion.heal);
+      if (healed > 0) {
+        player.hp += healed;
+        floatText.push({ x: player.x, y: player.y - 34, text: `+${Math.round(healed)}`, life: 0.58 });
+        updateUi();
+      }
+
+      if (Math.random() < healingPotion.boonChance) {
+        potionBuff.damageTime = 5.5;
+        potionBuff.damageBoost = healingPotion.damageBoost;
+        floatText.push({ x: player.x, y: player.y - 52, text: "TONIC", life: 0.8 });
+      }
+      if (healingPotion.fireEffect > 0 && Math.random() < healingPotion.effectChance) {
+        potionBuff.fireTime = 5.5;
+        potionBuff.fireDamage = healingPotion.fireEffect;
+        floatText.push({ x: player.x, y: player.y - 52, text: "EMBER", life: 0.8 });
+      }
+      if (healingPotion.iceEffect > 0 && Math.random() < healingPotion.effectChance) {
+        potionBuff.iceTime = 5.5;
+        potionBuff.iceSlow = healingPotion.iceEffect;
+        floatText.push({ x: player.x, y: player.y - 52, text: "FROST", life: 0.8 });
+      }
+    }
+
     function splashFireball(ball) {
       explosions.push({
         x: ball.x,
@@ -2254,7 +2380,7 @@
         if (enemy.dead) continue;
         const hitRange = ball.splashRadius + enemy.radius;
         if (distanceSq(enemy, ball) < hitRange * hitRange) {
-          enemy.hp -= ball.damage;
+          damageEnemy(enemy, ball.damage);
           applyBurn(enemy, ball.burnDamage);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(ball.damage), life: 0.42 });
           if (enemy.hp <= 0) killEnemy(enemy);
@@ -2303,7 +2429,7 @@
         if (enemy.dead) continue;
         const hitRange = ice.splashRadius + enemy.radius;
         if (distanceSq(enemy, ice) < hitRange * hitRange) {
-          enemy.hp -= ice.damage;
+          damageEnemy(enemy, ice.damage);
           applyIce(enemy, ice.slow);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(ice.damage), life: 0.42 });
           if (enemy.hp <= 0) killEnemy(enemy);
@@ -2386,7 +2512,7 @@
         if (enemy.dead) continue;
         const hitRange = enemy.radius + blastRadius;
         if (distanceSq(enemy, mine) < hitRange * hitRange) {
-          enemy.hp -= mine.damage;
+          damageEnemy(enemy, mine.damage);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(mine.damage), life: 0.5 });
           if (enemy.hp <= 0) killEnemy(enemy);
         }
@@ -2407,7 +2533,7 @@
         if (enemy.dead) continue;
         const hitRange = tadpole.splashRadius + enemy.radius;
         if (distanceSq(enemy, tadpole) < hitRange * hitRange) {
-          enemy.hp -= tadpole.damage;
+          damageEnemy(enemy, tadpole.damage);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(tadpole.damage), life: 0.42 });
           if (enemy.hp <= 0) killEnemy(enemy);
         }
@@ -2544,6 +2670,7 @@
             if (upgrade.weapon === "shock") shockWaveWeapon.level += 1;
             if (upgrade.weapon === "fireball") fireballWeapon.level += 1;
             if (upgrade.weapon === "icicle") icicleWeapon.level += 1;
+            if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
           if (world.pendingUpgrades > 0) {
@@ -2583,6 +2710,10 @@
       shockWaveWeapon.timer -= dt;
       fireballWeapon.timer -= dt;
       icicleWeapon.timer -= dt;
+      healingPotion.timer -= dt;
+      potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
+      potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
+      potionBuff.iceTime = Math.max(0, potionBuff.iceTime - dt);
       player.hurtTimer = Math.max(0, player.hurtTimer - dt);
 
       const move = getMoveVector();
@@ -2694,6 +2825,11 @@
         icicleWeapon.timer = icicleWeapon.cooldown;
       }
 
+      if (healingPotion.unlocked && healingPotion.timer <= 0) {
+        triggerHealingPotion();
+        healingPotion.timer = healingPotion.cooldown;
+      }
+
       for (let i = projectiles.length - 1; i >= 0; i -= 1) {
         const arrow = projectiles[i];
         arrow.x += arrow.vx * dt;
@@ -2705,7 +2841,7 @@
           if (enemy.dead || arrow.hitIds.has(enemy.id)) continue;
           const hitRange = arrow.radius + enemy.radius;
           if (distanceSq(arrow, enemy) < hitRange * hitRange) {
-            enemy.hp -= arrow.damage;
+            damageEnemy(enemy, arrow.damage);
             arrow.hitIds.add(enemy.id);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(arrow.damage), life: 0.45 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -2840,7 +2976,7 @@
           if (enemy.dead || banana.hitCooldowns.has(enemy.id)) continue;
           const hitRange = banana.radius + enemy.radius;
           if (distanceSq(banana, enemy) < hitRange * hitRange) {
-            enemy.hp -= banana.damage;
+            damageEnemy(enemy, banana.damage);
             banana.hitCooldowns.set(enemy.id, 0.32);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(banana.damage), life: 0.42 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -2869,7 +3005,7 @@
           if (Math.abs(dist - wave.radius) > band) continue;
           const enemyAngle = Math.atan2(dy, dx);
           if (Math.abs(angleDifference(enemyAngle, wave.angle)) > wave.arc / 2) continue;
-          enemy.hp -= wave.damage;
+          damageEnemy(enemy, wave.damage);
           wave.hitIds.add(enemy.id);
           floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(wave.damage), life: 0.42 });
           if (enemy.hp <= 0) killEnemy(enemy);
@@ -2905,7 +3041,7 @@
           const a = { x: player.x, y: player.y };
           const b = { x: target.x, y: target.y };
           const hitIds = new Set([target.id]);
-          target.hp -= tongueWeapon.damage;
+          damageEnemy(target, tongueWeapon.damage);
           floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(tongueWeapon.damage), life: 0.34 });
           if (target.hp <= 0) killEnemy(target);
 
@@ -2914,7 +3050,7 @@
             if (enemy.dead || hitIds.has(enemy.id) || tongue.hitCooldowns.has(enemy.id)) continue;
             const touchRange = enemy.radius + tongueWeapon.width / 2;
             if (distanceToSegmentSq(enemy, a, b) < touchRange * touchRange) {
-              enemy.hp -= tongueWeapon.damage;
+              damageEnemy(enemy, tongueWeapon.damage);
               hitIds.add(enemy.id);
               tongue.hitCooldowns.set(enemy.id, tongueWeapon.tickRate);
               floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(tongueWeapon.damage), life: 0.34 });
@@ -3006,7 +3142,7 @@
           if (enemy.dead || asteroid.hitCooldowns.has(enemy.id)) continue;
           const hitRange = enemy.radius + asteroid.radius;
           if (distanceSq(enemy, { x: asteroidX, y: asteroidY }) < hitRange * hitRange) {
-            enemy.hp -= asteroid.damage;
+            damageEnemy(enemy, asteroid.damage);
             asteroid.hitCooldowns.set(enemy.id, 0.42);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(asteroid.damage), life: 0.4 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -3053,7 +3189,7 @@
           if (enemy.dead || orb.hitCooldowns.has(enemy.id)) continue;
           const hitRange = enemy.radius + orb.radius;
           if (distanceSq(enemy, orb) < hitRange * hitRange) {
-            enemy.hp -= orb.damage;
+            damageEnemy(enemy, orb.damage);
             orb.hitCooldowns.set(enemy.id, 0.85);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(orb.damage), life: 0.5 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -3074,7 +3210,7 @@
           if (enemy.dead || energyRing.hitCooldowns.has(enemy.id)) continue;
           const hitRange = energyRing.radius + enemy.radius;
           if (distanceSq(player, enemy) < hitRange * hitRange) {
-            enemy.hp -= energyRing.damage;
+            damageEnemy(enemy, energyRing.damage);
             energyRing.hitCooldowns.set(enemy.id, energyRing.tickRate);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(energyRing.damage), life: 0.38 });
             if (enemy.hp <= 0) killEnemy(enemy);
@@ -3100,7 +3236,7 @@
           beam.tick -= dt;
           beam.shimmer += dt * 12;
           if (beam.tick <= 0) {
-            target.hp -= skyLaser.damage;
+            damageEnemy(target, skyLaser.damage);
             beam.tick = skyLaser.tickRate;
             floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(skyLaser.damage), life: 0.32 });
             if (target.hp <= 0) {
@@ -3144,7 +3280,7 @@
           if (distanceSq(enemy, puddle) < touchRange * touchRange) {
             slowAmount = Math.max(slowAmount, puddle.slow);
             if (!puddle.hitCooldowns.has(enemy.id)) {
-              enemy.hp -= puddle.damage;
+              damageEnemy(enemy, puddle.damage);
               puddle.hitCooldowns.set(enemy.id, puddle.tickRate);
               floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(puddle.damage), life: 0.34 });
               if (enemy.hp <= 0) killEnemy(enemy);
@@ -3230,7 +3366,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -3402,6 +3538,24 @@
       icicleWeapon.speed = 430;
       icicleWeapon.timer = 0;
 
+      healingPotion.unlocked = false;
+      healingPotion.level = 0;
+      healingPotion.heal = 14;
+      healingPotion.cooldown = 8.5;
+      healingPotion.boonChance = 0.16;
+      healingPotion.damageBoost = 0.12;
+      healingPotion.effectChance = 0;
+      healingPotion.fireEffect = 0;
+      healingPotion.iceEffect = 0;
+      healingPotion.timer = 0;
+
+      potionBuff.damageTime = 0;
+      potionBuff.damageBoost = 0;
+      potionBuff.fireTime = 0;
+      potionBuff.fireDamage = 0;
+      potionBuff.iceTime = 0;
+      potionBuff.iceSlow = 0;
+
       enemies.length = 0;
       projectiles.length = 0;
       tadpoles.length = 0;
@@ -3571,6 +3725,18 @@
 
       ctx.save();
       ctx.translate(x, y);
+
+      if (potionBuff.damageTime > 0 || potionBuff.fireTime > 0 || potionBuff.iceTime > 0) {
+        ctx.strokeStyle = potionBuff.fireTime > 0
+          ? "rgba(255, 132, 40, 0.75)"
+          : potionBuff.iceTime > 0
+            ? "rgba(150, 235, 255, 0.75)"
+            : "rgba(214, 255, 144, 0.72)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 2, player.radius * 1.42 + Math.sin(world.time * 7) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
       ctx.beginPath();
