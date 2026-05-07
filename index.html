@@ -583,7 +583,7 @@
     const fireballWeapon = {
       unlocked: false,
       level: 0,
-      damage: 12,
+      damage: 8,
       burnDamage: 4,
       splashRadius: 54,
       count: 1,
@@ -1384,11 +1384,11 @@
       },
       {
         name: "Hotter Flames",
-        text: "Fireball splash damage +4 and burn damage +1.",
+        text: "Fireball splash damage +3 and burn damage +1.",
         weapon: "fireball",
         available: () => fireballWeapon.unlocked,
         apply: () => {
-          fireballWeapon.damage += 4;
+          fireballWeapon.damage += 3;
           fireballWeapon.burnDamage += 1;
         },
       },
@@ -3384,7 +3384,7 @@
 
       fireballWeapon.unlocked = false;
       fireballWeapon.level = 0;
-      fireballWeapon.damage = 12;
+      fireballWeapon.damage = 8;
       fireballWeapon.burnDamage = 4;
       fireballWeapon.splashRadius = 54;
       fireballWeapon.count = 1;
