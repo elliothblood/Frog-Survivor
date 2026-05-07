@@ -1632,8 +1632,8 @@
     function tongueMouthPoint(target = null) {
       const angle = target ? Math.atan2(target.y - player.y, target.x - player.x) : 0;
       return {
-        x: player.x + Math.cos(angle) * 4,
-        y: player.y + 4 + Math.sin(angle) * 2,
+        x: player.x + Math.cos(angle) * 3,
+        y: player.y + 3 + Math.sin(angle) * 2,
       };
     }
 
@@ -3787,11 +3787,22 @@
       ctx.arc(10, -8.5, 2.1, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = "#1f5b2c";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 3, 8, 0.18, Math.PI - 0.18);
-      ctx.stroke();
+      const tongueActive = tongues.some((tongue) => tongue.life > 0 && enemyById.has(tongue.targetId));
+      if (tongueActive) {
+        ctx.fillStyle = "#501018";
+        ctx.strokeStyle = "#1f5b2c";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 8.5, 4.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = "#1f5b2c";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 3, 8, 0.18, Math.PI - 0.18);
+        ctx.stroke();
+      }
 
       ctx.fillStyle = "#2f823b";
       ctx.beginPath();
@@ -4981,13 +4992,13 @@
       drawEnergyRing();
       drawSkyLasers();
       drawLasers();
-      drawTongues();
       drawSlashes();
       drawAsteroids();
       drawLightningOrbs();
       drawProjectiles();
       drawEnemies();
       drawPlayer();
+      drawTongues();
       drawFloatText();
     }
 
