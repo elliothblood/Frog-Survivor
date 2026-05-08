@@ -308,6 +308,8 @@
         <div class="pill weapon" id="shockPill" hidden><small>Shock</small><span id="shock">-</span></div>
         <div class="pill weapon" id="fireballPill" hidden><small>Fire</small><span id="fireball">-</span></div>
         <div class="pill weapon" id="iciclePill" hidden><small>Ice</small><span id="icicle">-</span></div>
+        <div class="pill weapon" id="bubblePill" hidden><small>Bubble</small><span id="bubble">-</span></div>
+        <div class="pill weapon" id="splashPill" hidden><small>Splash</small><span id="splash">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
@@ -369,6 +371,8 @@
       shock: document.querySelector("#shock"),
       fireball: document.querySelector("#fireball"),
       icicle: document.querySelector("#icicle"),
+      bubble: document.querySelector("#bubble"),
+      splash: document.querySelector("#splash"),
       potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
@@ -385,6 +389,8 @@
       shockPill: document.querySelector("#shockPill"),
       fireballPill: document.querySelector("#fireballPill"),
       iciclePill: document.querySelector("#iciclePill"),
+      bubblePill: document.querySelector("#bubblePill"),
+      splashPill: document.querySelector("#splashPill"),
       potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
@@ -454,8 +460,8 @@
     const sword = {
       unlocked: false,
       level: 0,
-      damage: 44,
-      cooldown: 1.1,
+      damage: 60,
+      cooldown: 0.75,
       range: 68,
       arc: Math.PI * 0.48,
       slashCount: 1,
@@ -553,7 +559,7 @@
       level: 0,
       damage: 16,
       splashRadius: 58,
-      count: 3,
+      count: 1,
       cooldown: 1.6,
       fallTime: 0.45,
       timer: 0,
@@ -607,6 +613,29 @@
       timer: 0,
     };
 
+    const bubbleWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 13,
+      size: 1,
+      count: 1,
+      cooldown: 1.2,
+      speed: 110,
+      duration: 2.4,
+      timer: 0,
+    };
+
+    const splashWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 18,
+      size: 1,
+      cooldown: 1.55,
+      driftSpeed: 72,
+      duration: 1.35,
+      timer: 0,
+    };
+
     const healingPotion = {
       unlocked: false,
       level: 0,
@@ -639,6 +668,8 @@
     const shockWaves = [];
     const fireballs = [];
     const icicles = [];
+    const bubbles = [];
+    const splashRings = [];
     const enemyProjectiles = [];
     const lasers = [];
     const slashes = [];
@@ -799,10 +830,10 @@
       },
       {
         name: "Honed Edge",
-        text: "Sword damage +14.",
+        text: "Sword damage +18.",
         weapon: "sword",
         available: () => sword.unlocked,
-        apply: () => sword.damage += 14,
+        apply: () => sword.damage += 18,
       },
       {
         name: "Longblade",
@@ -816,10 +847,10 @@
       },
       {
         name: "Sword Flurry",
-        text: "Sword slashes 18% faster.",
+        text: "Sword slashes 22% faster.",
         weapon: "sword",
         available: () => sword.unlocked,
-        apply: () => sword.cooldown = Math.max(0.38, sword.cooldown * 0.82),
+        apply: () => sword.cooldown = Math.max(0.28, sword.cooldown * 0.78),
       },
       {
         name: "Dancing Steel",
@@ -830,14 +861,14 @@
       },
       {
         name: "Cleaving Tempo",
-        text: "Sword damage +8, size +12%, and fire rate +10%.",
+        text: "Sword damage +12, size +12%, and fire rate +14%.",
         weapon: "sword",
         available: () => sword.unlocked,
         apply: () => {
-          sword.damage += 8;
+          sword.damage += 12;
           sword.range += 7;
           sword.arc = Math.min(Math.PI * 0.9, sword.arc + 0.05);
-          sword.cooldown = Math.max(0.38, sword.cooldown * 0.9);
+          sword.cooldown = Math.max(0.28, sword.cooldown * 0.86);
         },
       },
       {
@@ -1251,6 +1282,7 @@
         apply: () => {
           rainWeapon.unlocked = true;
           rainWeapon.level = 1;
+          rainWeapon.count = 1;
           rainWeapon.timer = 0;
         },
       },
@@ -1270,10 +1302,17 @@
       },
       {
         name: "Downpour",
-        text: "Drop one additional raindrop per storm.",
+        text: "Drop two additional raindrops per storm.",
         weapon: "rain",
         available: () => rainWeapon.unlocked,
-        apply: () => rainWeapon.count += 1,
+        apply: () => rainWeapon.count += 2,
+      },
+      {
+        name: "Cloudburst",
+        text: "Drop three additional raindrops per storm.",
+        weapon: "rain",
+        available: () => rainWeapon.unlocked,
+        apply: () => rainWeapon.count += 3,
       },
       {
         name: "Fast Clouds",
@@ -1502,6 +1541,115 @@
         },
       },
       {
+        name: "Bubbles",
+        text: "Shoot bubbles that pass through enemies and grow until they pop.",
+        weapon: "bubble",
+        unlock: true,
+        available: () => !bubbleWeapon.unlocked,
+        apply: () => {
+          bubbleWeapon.unlocked = true;
+          bubbleWeapon.level = 1;
+          bubbleWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Soapier Bubbles",
+        text: "Bubble size +20%.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.size *= 1.2,
+      },
+      {
+        name: "Stinging Foam",
+        text: "Bubble damage +5.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.damage += 5,
+      },
+      {
+        name: "Quick Suds",
+        text: "Bubbles fire 18% faster.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.cooldown = Math.max(0.38, bubbleWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Tailwind Bubbles",
+        text: "Bubble projectile speed +22%.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.speed *= 1.22,
+      },
+      {
+        name: "Bubble Pair",
+        text: "Shoot one additional bubble per volley.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.count += 1,
+      },
+      {
+        name: "Long Float",
+        text: "Bubbles last 25% longer before popping.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => bubbleWeapon.duration *= 1.25,
+      },
+      {
+        name: "Foam Burst",
+        text: "Bubble damage +3, size +10%, and one extra bubble.",
+        weapon: "bubble",
+        available: () => bubbleWeapon.unlocked,
+        apply: () => {
+          bubbleWeapon.damage += 3;
+          bubbleWeapon.size *= 1.1;
+          bubbleWeapon.count += 1;
+        },
+      },
+      {
+        name: "Splash",
+        text: "Create a blue ring around you that grows and drifts outward.",
+        weapon: "splash",
+        unlock: true,
+        available: () => !splashWeapon.unlocked,
+        apply: () => {
+          splashWeapon.unlocked = true;
+          splashWeapon.level = 1;
+          splashWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Deeper Splash",
+        text: "Splash damage +8.",
+        weapon: "splash",
+        available: () => splashWeapon.unlocked,
+        apply: () => splashWeapon.damage += 8,
+      },
+      {
+        name: "Rippling Water",
+        text: "Splash size +22%.",
+        weapon: "splash",
+        available: () => splashWeapon.unlocked,
+        apply: () => splashWeapon.size *= 1.22,
+      },
+      {
+        name: "Quick Splash",
+        text: "Splash fires 18% faster.",
+        weapon: "splash",
+        available: () => splashWeapon.unlocked,
+        apply: () => splashWeapon.cooldown = Math.max(0.5, splashWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Tidal Pulse",
+        text: "Splash damage +4, size +12%, and fire rate +10%.",
+        weapon: "splash",
+        available: () => splashWeapon.unlocked,
+        apply: () => {
+          splashWeapon.damage += 4;
+          splashWeapon.size *= 1.12;
+          splashWeapon.cooldown = Math.max(0.5, splashWeapon.cooldown * 0.9);
+        },
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -1654,6 +1802,8 @@
         + (shockWaveWeapon.unlocked ? 1 : 0)
         + (fireballWeapon.unlocked ? 1 : 0)
         + (icicleWeapon.unlocked ? 1 : 0)
+        + (bubbleWeapon.unlocked ? 1 : 0)
+        + (splashWeapon.unlocked ? 1 : 0)
         + (healingPotion.unlocked ? 1 : 0);
     }
 
@@ -1678,6 +1828,8 @@
       ui.shockPill.hidden = !shockWaveWeapon.unlocked;
       ui.fireballPill.hidden = !fireballWeapon.unlocked;
       ui.iciclePill.hidden = !icicleWeapon.unlocked;
+      ui.bubblePill.hidden = !bubbleWeapon.unlocked;
+      ui.splashPill.hidden = !splashWeapon.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
@@ -1694,6 +1846,8 @@
       ui.shock.textContent = shockWaveWeapon.unlocked ? shockWaveWeapon.level : "-";
       ui.fireball.textContent = fireballWeapon.unlocked ? fireballWeapon.level : "-";
       ui.icicle.textContent = icicleWeapon.unlocked ? icicleWeapon.level : "-";
+      ui.bubble.textContent = bubbleWeapon.unlocked ? bubbleWeapon.level : "-";
+      ui.splash.textContent = splashWeapon.unlocked ? splashWeapon.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
@@ -2218,7 +2372,8 @@
     function fireRain() {
       if (!rainWeapon.unlocked) return;
       const usedTargets = new Set();
-      for (let i = 0; i < rainWeapon.count; i += 1) {
+      const dropCount = rainWeapon.level <= 1 ? 1 : rainWeapon.count;
+      for (let i = 0; i < dropCount; i += 1) {
         const target = randomVisibleEnemy(usedTargets);
         if (!target) break;
         usedTargets.add(target.id);
@@ -2472,6 +2627,60 @@
       }
     }
 
+    function fireBubbles() {
+      if (!bubbleWeapon.unlocked) return;
+      const target = findTarget(720) || randomVisibleEnemy();
+      if (!target) return;
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(0.9, 0.2 * (bubbleWeapon.count - 1));
+      for (let i = 0; i < bubbleWeapon.count; i += 1) {
+        const offset = bubbleWeapon.count === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (bubbleWeapon.count - 1);
+        const angle = baseAngle + offset;
+        const startRadius = 7 * bubbleWeapon.size;
+        const maxRadius = 30 * bubbleWeapon.size;
+        bubbles.push({
+          x: player.x + Math.cos(angle) * 24,
+          y: player.y + Math.sin(angle) * 24,
+          vx: Math.cos(angle) * bubbleWeapon.speed,
+          vy: Math.sin(angle) * bubbleWeapon.speed,
+          radius: startRadius,
+          startRadius,
+          maxRadius,
+          damage: bubbleWeapon.damage,
+          life: bubbleWeapon.duration,
+          maxLife: bubbleWeapon.duration,
+          angle,
+          wobble: Math.random() * Math.PI * 2,
+          hitIds: new Set(),
+        });
+      }
+    }
+
+    function fireSplash() {
+      if (!splashWeapon.unlocked) return;
+      const target = findTarget(520) || randomVisibleEnemy();
+      const angle = target
+        ? Math.atan2(target.y - player.y, target.x - player.x)
+        : world.time * 1.7;
+      splashRings.push({
+        x: player.x,
+        y: player.y,
+        vx: Math.cos(angle) * splashWeapon.driftSpeed,
+        vy: Math.sin(angle) * splashWeapon.driftSpeed,
+        radius: 26 * splashWeapon.size,
+        startRadius: 26 * splashWeapon.size,
+        maxRadius: 118 * splashWeapon.size,
+        damage: splashWeapon.damage,
+        life: splashWeapon.duration,
+        maxLife: splashWeapon.duration,
+        angle,
+        ripple: Math.random() * Math.PI * 2,
+        hitIds: new Set(),
+      });
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -2678,6 +2887,8 @@
             if (upgrade.weapon === "shock") shockWaveWeapon.level += 1;
             if (upgrade.weapon === "fireball") fireballWeapon.level += 1;
             if (upgrade.weapon === "icicle") icicleWeapon.level += 1;
+            if (upgrade.weapon === "bubble") bubbleWeapon.level += 1;
+            if (upgrade.weapon === "splash") splashWeapon.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
@@ -2718,6 +2929,8 @@
       shockWaveWeapon.timer -= dt;
       fireballWeapon.timer -= dt;
       icicleWeapon.timer -= dt;
+      bubbleWeapon.timer -= dt;
+      splashWeapon.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -2831,6 +3044,16 @@
       if (icicleWeapon.unlocked && icicleWeapon.timer <= 0) {
         fireIcicles();
         icicleWeapon.timer = icicleWeapon.cooldown;
+      }
+
+      if (bubbleWeapon.unlocked && bubbleWeapon.timer <= 0) {
+        fireBubbles();
+        bubbleWeapon.timer = bubbleWeapon.cooldown;
+      }
+
+      if (splashWeapon.unlocked && splashWeapon.timer <= 0) {
+        fireSplash();
+        splashWeapon.timer = splashWeapon.cooldown;
       }
 
       if (healingPotion.unlocked && healingPotion.timer <= 0) {
@@ -2950,6 +3173,64 @@
 
         if (hit || ice.life <= 0 || ice.x < -80 || ice.x > world.width + 80 || ice.y < -80 || ice.y > world.height + 80) {
           icicles.splice(i, 1);
+        }
+      }
+
+      for (let i = bubbles.length - 1; i >= 0; i -= 1) {
+        const bubble = bubbles[i];
+        bubble.x += bubble.vx * dt;
+        bubble.y += bubble.vy * dt;
+        bubble.life -= dt;
+        bubble.wobble += dt * 5.5;
+        const age = clamp(1 - bubble.life / bubble.maxLife, 0, 1);
+        bubble.radius = bubble.startRadius + (bubble.maxRadius - bubble.startRadius) * age;
+
+        for (const enemy of nearbyEnemies(bubble.x, bubble.y, bubble.radius + 34)) {
+          if (enemy.dead || bubble.hitIds.has(enemy.id)) continue;
+          const hitRange = bubble.radius + enemy.radius;
+          if (distanceSq(bubble, enemy) < hitRange * hitRange) {
+            damageEnemy(enemy, bubble.damage);
+            bubble.hitIds.add(enemy.id);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(bubble.damage), life: 0.42 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+          }
+        }
+
+        if (bubble.life <= 0 || bubble.x < -120 || bubble.x > world.width + 120 || bubble.y < -120 || bubble.y > world.height + 120) {
+          explosions.push({
+            x: bubble.x,
+            y: bubble.y,
+            radius: bubble.radius,
+            life: 0.26,
+            maxLife: 0.26,
+            color: "#9eefff",
+          });
+          bubbles.splice(i, 1);
+        }
+      }
+
+      for (let i = splashRings.length - 1; i >= 0; i -= 1) {
+        const ring = splashRings[i];
+        ring.x += ring.vx * dt;
+        ring.y += ring.vy * dt;
+        ring.life -= dt;
+        ring.ripple += dt * 5;
+        const age = clamp(1 - ring.life / ring.maxLife, 0, 1);
+        ring.radius = ring.startRadius + (ring.maxRadius - ring.startRadius) * age;
+        const thickness = Math.max(14, ring.radius * 0.18);
+
+        for (const enemy of nearbyEnemies(ring.x, ring.y, ring.radius + thickness + 36)) {
+          if (enemy.dead || ring.hitIds.has(enemy.id)) continue;
+          const dist = Math.hypot(enemy.x - ring.x, enemy.y - ring.y);
+          if (Math.abs(dist - ring.radius) > thickness + enemy.radius) continue;
+          damageEnemy(enemy, ring.damage);
+          ring.hitIds.add(enemy.id);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(ring.damage), life: 0.42 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+
+        if (ring.life <= 0 || ring.x < -160 || ring.x > world.width + 160 || ring.y < -160 || ring.y > world.height + 160) {
+          splashRings.splice(i, 1);
         }
       }
 
@@ -3374,7 +3655,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -3420,8 +3701,8 @@
 
       sword.unlocked = false;
       sword.level = 0;
-      sword.damage = 44;
-      sword.cooldown = 1.1;
+      sword.damage = 60;
+      sword.cooldown = 0.75;
       sword.range = 68;
       sword.arc = Math.PI * 0.48;
       sword.slashCount = 1;
@@ -3501,7 +3782,7 @@
       rainWeapon.level = 0;
       rainWeapon.damage = 16;
       rainWeapon.splashRadius = 58;
-      rainWeapon.count = 3;
+      rainWeapon.count = 1;
       rainWeapon.cooldown = 1.6;
       rainWeapon.fallTime = 0.45;
       rainWeapon.timer = 0;
@@ -3546,6 +3827,25 @@
       icicleWeapon.speed = 430;
       icicleWeapon.timer = 0;
 
+      bubbleWeapon.unlocked = false;
+      bubbleWeapon.level = 0;
+      bubbleWeapon.damage = 13;
+      bubbleWeapon.size = 1;
+      bubbleWeapon.count = 1;
+      bubbleWeapon.cooldown = 1.2;
+      bubbleWeapon.speed = 110;
+      bubbleWeapon.duration = 2.4;
+      bubbleWeapon.timer = 0;
+
+      splashWeapon.unlocked = false;
+      splashWeapon.level = 0;
+      splashWeapon.damage = 18;
+      splashWeapon.size = 1;
+      splashWeapon.cooldown = 1.55;
+      splashWeapon.driftSpeed = 72;
+      splashWeapon.duration = 1.35;
+      splashWeapon.timer = 0;
+
       healingPotion.unlocked = false;
       healingPotion.level = 0;
       healingPotion.heal = 14;
@@ -3574,6 +3874,8 @@
       shockWaves.length = 0;
       fireballs.length = 0;
       icicles.length = 0;
+      bubbles.length = 0;
+      splashRings.length = 0;
       enemyProjectiles.length = 0;
       lasers.length = 0;
       slashes.length = 0;
@@ -4501,6 +4803,63 @@
         ctx.beginPath();
         ctx.moveTo(ice.radius * 0.9, 0);
         ctx.lineTo(-ice.radius * 0.35, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const bubble of bubbles) {
+        const x = screenX(bubble.x);
+        const y = screenY(bubble.y + Math.sin(bubble.wobble) * 3);
+        const shine = Math.sin(bubble.wobble * 1.7) * bubble.radius * 0.05;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "rgba(134, 230, 255, 0.18)";
+        ctx.strokeStyle = "rgba(174, 244, 255, 0.86)";
+        ctx.lineWidth = Math.max(2, bubble.radius * 0.12);
+        ctx.beginPath();
+        ctx.arc(0, 0, bubble.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+        ctx.lineWidth = Math.max(1.4, bubble.radius * 0.08);
+        ctx.beginPath();
+        ctx.arc(-bubble.radius * 0.25, -bubble.radius * 0.25, bubble.radius * 0.36 + shine, Math.PI * 0.95, Math.PI * 1.55);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.beginPath();
+        ctx.arc(-bubble.radius * 0.32, -bubble.radius * 0.38, Math.max(2, bubble.radius * 0.12), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (const ring of splashRings) {
+        const x = screenX(ring.x);
+        const y = screenY(ring.y);
+        const alpha = clamp(ring.life / ring.maxLife, 0, 1);
+        const thickness = Math.max(14, ring.radius * 0.18);
+        const wobble = Math.sin(ring.ripple) * thickness * 0.12;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(x, y);
+        ctx.rotate(ring.angle);
+        ctx.strokeStyle = "rgba(74, 196, 255, 0.76)";
+        ctx.lineWidth = thickness;
+        ctx.beginPath();
+        ctx.arc(0, wobble, ring.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(214, 250, 255, 0.72)";
+        ctx.lineWidth = Math.max(2, thickness * 0.22);
+        ctx.beginPath();
+        ctx.arc(0, wobble, ring.radius + thickness * 0.24, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(41, 135, 235, 0.36)";
+        ctx.lineWidth = Math.max(2, thickness * 0.24);
+        ctx.beginPath();
+        ctx.arc(0, wobble, Math.max(6, ring.radius - thickness * 0.65), 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
