@@ -2007,7 +2007,7 @@
       const pos = randomEdgePosition();
       const averageHp = averageNonBossHp();
       const mouseHp = Math.max(780, averageHp * 12);
-      const bossTypes = ["mouse", "queenBee", "bird"];
+      const bossTypes = ["mouse", "queenBee", "bird", "worm"];
       const type = bossTypes[Math.floor(Math.random() * bossTypes.length)];
 
       const stats = {
@@ -2032,10 +2032,21 @@
           damage: 30,
           color: "#5b6775",
         },
+        worm: {
+          radius: 42,
+          hp: Math.max(920, averageHp * 16),
+          speed: 22 + Math.min(12, world.time / 120),
+          damage: 24,
+          color: "#b56b7a",
+        },
       }[type];
       const boss = makeBossBase(type, pos, stats.radius, stats.hp, stats.speed, stats.damage, stats.color);
       if (type === "mouse") boss.shotTimer = 1.2;
       if (type === "queenBee") boss.spawnTimer = 2.2;
+      if (type === "worm") {
+        boss.healTimer = 1.1;
+        boss.healAmount = Math.max(18, stats.hp * 0.025);
+      }
       addEnemy(boss);
       floatText.push({ x: boss.x, y: boss.y - 28, text: type === "queenBee" ? "QUEEN BEE" : type.toUpperCase(), life: 1.1, danger: true });
     }
@@ -2803,11 +2814,12 @@
         mouse: 30,
         queenBee: 38,
         bird: 55,
+        worm: 44,
       };
       const expValue = expValues[enemy.type] || 2;
       if (enemy.isBoss) {
-        const gemCount = enemy.type === "bird" ? 26 : enemy.type === "queenBee" ? 20 : 16;
-        const gemValue = enemy.type === "bird" ? 8 : enemy.type === "queenBee" ? 7 : 6;
+        const gemCount = enemy.type === "bird" ? 26 : enemy.type === "worm" ? 22 : enemy.type === "queenBee" ? 20 : 16;
+        const gemValue = enemy.type === "bird" ? 8 : enemy.type === "worm" ? 7 : enemy.type === "queenBee" ? 7 : 6;
         for (let i = 0; i < gemCount; i += 1) {
           const angle = (Math.PI * 2 * i) / gemCount;
           const spread = 18 + (i % 5) * 10;
@@ -3594,6 +3606,16 @@
             const beeCount = 2 + Math.min(3, Math.floor(world.time / 180));
             for (let i = 0; i < beeCount; i += 1) spawnBee(enemy);
             enemy.spawnTimer = Math.max(1.4, 3 - world.time * 0.002);
+          }
+        } else if (enemy.type === "worm") {
+          enemy.healTimer -= dt;
+          if (enemy.healTimer <= 0) {
+            const healed = Math.min(enemy.maxHp - enemy.hp, enemy.healAmount);
+            if (healed > 0) {
+              enemy.hp += healed;
+              floatText.push({ x: enemy.x, y: enemy.y - enemy.radius - 8, text: `+${Math.round(healed)}`, life: 0.45 });
+            }
+            enemy.healTimer = 1.1;
           }
         }
 
@@ -4439,6 +4461,42 @@
           ctx.beginPath();
           ctx.moveTo(enemy.radius * 0.78, enemy.radius * 0.24);
           ctx.bezierCurveTo(enemy.radius * 1.38, enemy.radius * 0.28, enemy.radius * 1.45, enemy.radius * 0.88, enemy.radius * 0.95, enemy.radius * 1.05);
+          ctx.stroke();
+          ctx.restore();
+        } else if (enemy.type === "worm") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const flex = Math.sin(enemy.pulse * 1.6) * enemy.radius * 0.08;
+
+          ctx.fillStyle = "#b56b7a";
+          ctx.strokeStyle = "#4a2430";
+          ctx.lineWidth = 3;
+          for (let i = 3; i >= -3; i -= 1) {
+            const segmentX = i * enemy.radius * 0.27;
+            const segmentY = Math.sin(enemy.pulse * 0.9 + i * 0.65) * enemy.radius * 0.16;
+            ctx.beginPath();
+            ctx.ellipse(segmentX, segmentY, enemy.radius * 0.34, enemy.radius * 0.58, flex * 0.01, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = "#cf8794";
+          ctx.strokeStyle = "#4a2430";
+          ctx.beginPath();
+          ctx.ellipse(enemy.radius * 1.02, -enemy.radius * 0.02, enemy.radius * 0.42, enemy.radius * 0.56, 0.15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#241016";
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 1.12, -enemy.radius * 0.18, enemy.radius * 0.055, 0, Math.PI * 2);
+          ctx.arc(enemy.radius * 1.13, enemy.radius * 0.12, enemy.radius * 0.055, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "#6ad46e";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, enemy.radius * 0.92 + Math.sin(world.time * 5) * 2, -0.7, 0.7);
           ctx.stroke();
           ctx.restore();
         } else if (enemy.type === "ant") {
