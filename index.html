@@ -605,7 +605,7 @@
       unlocked: false,
       level: 0,
       damage: 10,
-      slow: 0.2,
+      slow: 0.3,
       splashRadius: 52,
       count: 1,
       cooldown: 1.05,
@@ -1702,7 +1702,7 @@
         available: () => healingPotion.unlocked,
         apply: () => {
           healingPotion.effectChance = Math.min(0.55, healingPotion.effectChance + 0.14);
-          healingPotion.iceEffect += 0.07;
+          healingPotion.iceEffect += 0.1;
         },
       },
     ];
@@ -3820,7 +3820,7 @@
       icicleWeapon.unlocked = false;
       icicleWeapon.level = 0;
       icicleWeapon.damage = 10;
-      icicleWeapon.slow = 0.2;
+      icicleWeapon.slow = 0.3;
       icicleWeapon.splashRadius = 52;
       icicleWeapon.count = 1;
       icicleWeapon.cooldown = 1.05;
