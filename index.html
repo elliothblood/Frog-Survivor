@@ -924,6 +924,14 @@
         apply: () => asteroidBelt.count += 1,
       },
       {
+        name: "Rare: Twin Moons",
+        text: "Create two additional asteroids.",
+        weapon: "asteroid",
+        rareChance: 0.16,
+        available: () => asteroidBelt.unlocked,
+        apply: () => asteroidBelt.count += 2,
+      },
+      {
         name: "Stable Gravity",
         text: "Asteroids last 1.4 seconds longer.",
         weapon: "asteroid",
@@ -3004,7 +3012,10 @@
 
       const canAddWeapon = ownedWeaponCount() < 5;
       const availableUpgrades = upgradePool
-        .filter((upgrade) => (!upgrade.unlock || canAddWeapon) && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock) && (!upgrade.available || upgrade.available()));
+        .filter((upgrade) => (!upgrade.unlock || canAddWeapon)
+          && (!upgrade.rareChance || Math.random() < upgrade.rareChance)
+          && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock)
+          && (!upgrade.available || upgrade.available()));
       const guaranteed = availableUpgrades
         .filter((upgrade) => upgrade.unlock)
         .sort(() => Math.random() - 0.5)
