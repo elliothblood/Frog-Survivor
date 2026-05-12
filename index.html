@@ -311,6 +311,7 @@
         <div class="pill weapon" id="bubblePill" hidden><small>Bubble</small><span id="bubble">-</span></div>
         <div class="pill weapon" id="splashPill" hidden><small>Splash</small><span id="splash">-</span></div>
         <div class="pill weapon" id="twigPill" hidden><small>Twig</small><span id="twig">-</span></div>
+        <div class="pill weapon" id="snowballPill" hidden><small>Snow</small><span id="snowball">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
@@ -375,6 +376,7 @@
       bubble: document.querySelector("#bubble"),
       splash: document.querySelector("#splash"),
       twig: document.querySelector("#twig"),
+      snowball: document.querySelector("#snowball"),
       potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
@@ -394,6 +396,7 @@
       bubblePill: document.querySelector("#bubblePill"),
       splashPill: document.querySelector("#splashPill"),
       twigPill: document.querySelector("#twigPill"),
+      snowballPill: document.querySelector("#snowballPill"),
       potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
@@ -653,6 +656,18 @@
       timer: 0,
     };
 
+    const snowballWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 28,
+      size: 1,
+      spawnEvery: 1.75,
+      splashRadius: 64,
+      launchSpeed: 430,
+      maxSnowballs: 16,
+      timer: 0,
+    };
+
     const healingPotion = {
       unlocked: false,
       level: 0,
@@ -689,6 +704,7 @@
     const splashRings = [];
     const twigs = [];
     const leaves = [];
+    const snowballs = [];
     const enemyProjectiles = [];
     const lasers = [];
     const slashes = [];
@@ -1742,6 +1758,54 @@
         },
       },
       {
+        name: "Snowballs",
+        text: "Create blue snowballs that orbit you, then launch outward when touched.",
+        weapon: "snowball",
+        unlock: true,
+        available: () => !snowballWeapon.unlocked,
+        apply: () => {
+          snowballWeapon.unlocked = true;
+          snowballWeapon.level = 1;
+          snowballWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Faster Packing",
+        text: "Snowballs spawn 20% faster.",
+        weapon: "snowball",
+        available: () => snowballWeapon.unlocked,
+        apply: () => snowballWeapon.spawnEvery = Math.max(0.45, snowballWeapon.spawnEvery * 0.8),
+      },
+      {
+        name: "Packed Powder",
+        text: "Snowball size +18%.",
+        weapon: "snowball",
+        available: () => snowballWeapon.unlocked,
+        apply: () => {
+          snowballWeapon.size *= 1.18;
+          snowballWeapon.splashRadius *= 1.12;
+        },
+      },
+      {
+        name: "Heavy Slush",
+        text: "Snowball splash damage +10.",
+        weapon: "snowball",
+        available: () => snowballWeapon.unlocked,
+        apply: () => snowballWeapon.damage += 10,
+      },
+      {
+        name: "Avalanche Pack",
+        text: "Snowball damage +5, size +10%, and spawn rate +10%.",
+        weapon: "snowball",
+        available: () => snowballWeapon.unlocked,
+        apply: () => {
+          snowballWeapon.damage += 5;
+          snowballWeapon.size *= 1.1;
+          snowballWeapon.splashRadius *= 1.08;
+          snowballWeapon.spawnEvery = Math.max(0.45, snowballWeapon.spawnEvery * 0.9);
+        },
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -1897,6 +1961,7 @@
         + (bubbleWeapon.unlocked ? 1 : 0)
         + (splashWeapon.unlocked ? 1 : 0)
         + (twigWeapon.unlocked ? 1 : 0)
+        + (snowballWeapon.unlocked ? 1 : 0)
         + (healingPotion.unlocked ? 1 : 0);
     }
 
@@ -1924,6 +1989,7 @@
       ui.bubblePill.hidden = !bubbleWeapon.unlocked;
       ui.splashPill.hidden = !splashWeapon.unlocked;
       ui.twigPill.hidden = !twigWeapon.unlocked;
+      ui.snowballPill.hidden = !snowballWeapon.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
@@ -1943,6 +2009,7 @@
       ui.bubble.textContent = bubbleWeapon.unlocked ? bubbleWeapon.level : "-";
       ui.splash.textContent = splashWeapon.unlocked ? splashWeapon.level : "-";
       ui.twig.textContent = twigWeapon.unlocked ? twigWeapon.level : "-";
+      ui.snowball.textContent = snowballWeapon.unlocked ? snowballWeapon.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
@@ -2840,6 +2907,62 @@
       }
     }
 
+    function spawnSnowball() {
+      if (!snowballWeapon.unlocked) return;
+      const orbiting = snowballs.filter((snowball) => snowball.state === "orbit").length;
+      if (orbiting >= snowballWeapon.maxSnowballs) return;
+      snowballs.push({
+        state: "orbit",
+        angle: Math.random() * Math.PI * 2,
+        orbitRadius: 58 + (orbiting % 4) * 12,
+        orbitSpeed: 1.8 + (orbiting % 3) * 0.18,
+        radius: 11 * snowballWeapon.size,
+        damage: snowballWeapon.damage,
+        splashRadius: snowballWeapon.splashRadius * snowballWeapon.size,
+        life: 0,
+        x: player.x,
+        y: player.y,
+        spin: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function launchSnowballs() {
+      let launched = false;
+      for (const snowball of snowballs) {
+        if (snowball.state !== "orbit") continue;
+        const angle = Math.atan2(snowball.y - player.y, snowball.x - player.x);
+        snowball.state = "flying";
+        snowball.vx = Math.cos(angle) * snowballWeapon.launchSpeed;
+        snowball.vy = Math.sin(angle) * snowballWeapon.launchSpeed;
+        snowball.life = 1.25;
+        launched = true;
+      }
+      if (launched) {
+        floatText.push({ x: player.x, y: player.y - 44, text: "SNOWBALLS", life: 0.7 });
+      }
+    }
+
+    function burstSnowball(snowball) {
+      explosions.push({
+        x: snowball.x,
+        y: snowball.y,
+        radius: snowball.splashRadius,
+        life: 0.3,
+        maxLife: 0.3,
+        color: "#8edcff",
+      });
+
+      for (const enemy of nearbyEnemies(snowball.x, snowball.y, snowball.splashRadius + 42)) {
+        if (enemy.dead) continue;
+        const hitRange = snowball.splashRadius + enemy.radius;
+        if (distanceSq(enemy, snowball) < hitRange * hitRange) {
+          damageEnemy(enemy, snowball.damage);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(snowball.damage), life: 0.38 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -3053,6 +3176,7 @@
             if (upgrade.weapon === "bubble") bubbleWeapon.level += 1;
             if (upgrade.weapon === "splash") splashWeapon.level += 1;
             if (upgrade.weapon === "twig") twigWeapon.level += 1;
+            if (upgrade.weapon === "snowball") snowballWeapon.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
@@ -3096,6 +3220,7 @@
       bubbleWeapon.timer -= dt;
       splashWeapon.timer -= dt;
       twigWeapon.timer -= dt;
+      snowballWeapon.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -3224,6 +3349,11 @@
       if (twigWeapon.unlocked && twigWeapon.timer <= 0) {
         fireTwigs();
         twigWeapon.timer = twigWeapon.cooldown;
+      }
+
+      if (snowballWeapon.unlocked && snowballWeapon.timer <= 0) {
+        spawnSnowball();
+        snowballWeapon.timer = snowballWeapon.spawnEvery;
       }
 
       if (healingPotion.unlocked && healingPotion.timer <= 0) {
@@ -3457,6 +3587,47 @@
 
         if (hit || leaf.life <= 0 || leaf.x < -80 || leaf.x > world.width + 80 || leaf.y < -80 || leaf.y > world.height + 80) {
           leaves.splice(i, 1);
+        }
+      }
+
+      for (let i = snowballs.length - 1; i >= 0; i -= 1) {
+        const snowball = snowballs[i];
+        snowball.spin += dt * 5;
+
+        if (snowball.state === "orbit") {
+          snowball.angle += snowball.orbitSpeed * dt;
+          snowball.radius = 11 * snowballWeapon.size;
+          snowball.damage = snowballWeapon.damage;
+          snowball.splashRadius = snowballWeapon.splashRadius * snowballWeapon.size;
+          snowball.x = player.x + Math.cos(snowball.angle) * snowball.orbitRadius;
+          snowball.y = player.y + Math.sin(snowball.angle) * snowball.orbitRadius;
+
+          for (const enemy of nearbyEnemies(snowball.x, snowball.y, snowball.radius + 34)) {
+            if (enemy.dead) continue;
+            const hitRange = snowball.radius + enemy.radius;
+            if (distanceSq(snowball, enemy) < hitRange * hitRange) {
+              launchSnowballs();
+              break;
+            }
+          }
+        } else {
+          snowball.x += snowball.vx * dt;
+          snowball.y += snowball.vy * dt;
+          snowball.life -= dt;
+          let hit = false;
+          for (const enemy of nearbyEnemies(snowball.x, snowball.y, snowball.radius + 34)) {
+            if (enemy.dead) continue;
+            const hitRange = snowball.radius + enemy.radius;
+            if (distanceSq(snowball, enemy) < hitRange * hitRange) {
+              burstSnowball(snowball);
+              hit = true;
+              break;
+            }
+          }
+          if (hit || snowball.life <= 0 || snowball.x < -100 || snowball.x > world.width + 100 || snowball.y < -100 || snowball.y > world.height + 100) {
+            if (!hit && snowball.life <= 0) burstSnowball(snowball);
+            snowballs.splice(i, 1);
+          }
         }
       }
 
@@ -3891,7 +4062,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -4094,6 +4265,16 @@
       twigWeapon.leafSpeed = 330;
       twigWeapon.timer = 0;
 
+      snowballWeapon.unlocked = false;
+      snowballWeapon.level = 0;
+      snowballWeapon.damage = 28;
+      snowballWeapon.size = 1;
+      snowballWeapon.spawnEvery = 1.75;
+      snowballWeapon.splashRadius = 64;
+      snowballWeapon.launchSpeed = 430;
+      snowballWeapon.maxSnowballs = 16;
+      snowballWeapon.timer = 0;
+
       healingPotion.unlocked = false;
       healingPotion.level = 0;
       healingPotion.heal = 14;
@@ -4126,6 +4307,7 @@
       splashRings.length = 0;
       twigs.length = 0;
       leaves.length = 0;
+      snowballs.length = 0;
       enemyProjectiles.length = 0;
       lasers.length = 0;
       slashes.length = 0;
@@ -5194,6 +5376,36 @@
         ctx.beginPath();
         ctx.moveTo(-leaf.radius * 0.78, 0);
         ctx.lineTo(leaf.radius * 0.82, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (const snowball of snowballs) {
+        const x = screenX(snowball.x);
+        const y = screenY(snowball.y);
+        const glow = snowball.state === "orbit" ? 0.18 : 0.28;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(snowball.spin);
+        ctx.fillStyle = `rgba(105, 198, 255, ${glow})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, snowball.radius * 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#79d7ff";
+        ctx.strokeStyle = "#1d6e9c";
+        ctx.lineWidth = Math.max(2, snowball.radius * 0.18);
+        ctx.beginPath();
+        ctx.arc(0, 0, snowball.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(235, 255, 255, 0.88)";
+        ctx.beginPath();
+        ctx.arc(-snowball.radius * 0.28, -snowball.radius * 0.32, Math.max(2, snowball.radius * 0.24), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(235, 255, 255, 0.75)";
+        ctx.lineWidth = Math.max(1, snowball.radius * 0.12);
+        ctx.beginPath();
+        ctx.arc(snowball.radius * 0.1, snowball.radius * 0.12, snowball.radius * 0.48, 0.2, 1.5);
         ctx.stroke();
         ctx.restore();
       }
