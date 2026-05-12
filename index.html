@@ -312,6 +312,7 @@
         <div class="pill weapon" id="splashPill" hidden><small>Splash</small><span id="splash">-</span></div>
         <div class="pill weapon" id="twigPill" hidden><small>Twig</small><span id="twig">-</span></div>
         <div class="pill weapon" id="snowballPill" hidden><small>Snow</small><span id="snowball">-</span></div>
+        <div class="pill weapon" id="bombPill" hidden><small>Bomb</small><span id="bomb">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
@@ -377,6 +378,7 @@
       splash: document.querySelector("#splash"),
       twig: document.querySelector("#twig"),
       snowball: document.querySelector("#snowball"),
+      bomb: document.querySelector("#bomb"),
       potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
@@ -397,6 +399,7 @@
       splashPill: document.querySelector("#splashPill"),
       twigPill: document.querySelector("#twigPill"),
       snowballPill: document.querySelector("#snowballPill"),
+      bombPill: document.querySelector("#bombPill"),
       potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
@@ -665,6 +668,13 @@
       splashRadius: 64,
       launchSpeed: 430,
       maxSnowballs: 16,
+      timer: 0,
+    };
+
+    const bombWeapon = {
+      unlocked: false,
+      level: 0,
+      cooldown: 76,
       timer: 0,
     };
 
@@ -1806,6 +1816,32 @@
         },
       },
       {
+        name: "Bomb",
+        text: "Very occasionally clears every enemy on the screen.",
+        weapon: "bomb",
+        unlock: true,
+        available: () => !bombWeapon.unlocked,
+        apply: () => {
+          bombWeapon.unlocked = true;
+          bombWeapon.level = 1;
+          bombWeapon.timer = bombWeapon.cooldown;
+        },
+      },
+      {
+        name: "Shorter Fuse",
+        text: "Bomb explodes 18% more often.",
+        weapon: "bomb",
+        available: () => bombWeapon.unlocked,
+        apply: () => bombWeapon.cooldown = Math.max(18, bombWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Hot Fuse",
+        text: "Bomb explodes 25% more often.",
+        weapon: "bomb",
+        available: () => bombWeapon.unlocked,
+        apply: () => bombWeapon.cooldown = Math.max(18, bombWeapon.cooldown * 0.75),
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -1962,6 +1998,7 @@
         + (splashWeapon.unlocked ? 1 : 0)
         + (twigWeapon.unlocked ? 1 : 0)
         + (snowballWeapon.unlocked ? 1 : 0)
+        + (bombWeapon.unlocked ? 1 : 0)
         + (healingPotion.unlocked ? 1 : 0);
     }
 
@@ -1990,6 +2027,7 @@
       ui.splashPill.hidden = !splashWeapon.unlocked;
       ui.twigPill.hidden = !twigWeapon.unlocked;
       ui.snowballPill.hidden = !snowballWeapon.unlocked;
+      ui.bombPill.hidden = !bombWeapon.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
@@ -2010,6 +2048,7 @@
       ui.splash.textContent = splashWeapon.unlocked ? splashWeapon.level : "-";
       ui.twig.textContent = twigWeapon.unlocked ? twigWeapon.level : "-";
       ui.snowball.textContent = snowballWeapon.unlocked ? snowballWeapon.level : "-";
+      ui.bomb.textContent = bombWeapon.unlocked ? bombWeapon.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
@@ -2963,6 +3002,35 @@
       }
     }
 
+    function detonateBomb() {
+      if (!bombWeapon.unlocked) return;
+      const margin = 32;
+      const visible = enemies.filter((enemy) => {
+        if (enemy.dead) return false;
+        const x = screenX(enemy.x);
+        const y = screenY(enemy.y);
+        return x >= -enemy.radius - margin
+          && x <= window.innerWidth + enemy.radius + margin
+          && y >= -enemy.radius - margin
+          && y <= window.innerHeight + enemy.radius + margin;
+      });
+      if (!visible.length) return;
+
+      explosions.push({
+        x: player.x,
+        y: player.y,
+        radius: Math.max(window.innerWidth, window.innerHeight) * 0.62,
+        life: 0.48,
+        maxLife: 0.48,
+        color: "#ffdd55",
+      });
+      floatText.push({ x: player.x, y: player.y - 56, text: "BOOM", life: 0.9, danger: true });
+
+      for (const enemy of visible) {
+        if (!enemy.dead) killEnemy(enemy);
+      }
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -3177,6 +3245,7 @@
             if (upgrade.weapon === "splash") splashWeapon.level += 1;
             if (upgrade.weapon === "twig") twigWeapon.level += 1;
             if (upgrade.weapon === "snowball") snowballWeapon.level += 1;
+            if (upgrade.weapon === "bomb") bombWeapon.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
@@ -3221,6 +3290,7 @@
       splashWeapon.timer -= dt;
       twigWeapon.timer -= dt;
       snowballWeapon.timer -= dt;
+      bombWeapon.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -3354,6 +3424,11 @@
       if (snowballWeapon.unlocked && snowballWeapon.timer <= 0) {
         spawnSnowball();
         snowballWeapon.timer = snowballWeapon.spawnEvery;
+      }
+
+      if (bombWeapon.unlocked && bombWeapon.timer <= 0) {
+        detonateBomb();
+        bombWeapon.timer = bombWeapon.cooldown;
       }
 
       if (healingPotion.unlocked && healingPotion.timer <= 0) {
@@ -4062,7 +4137,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -4274,6 +4349,11 @@
       snowballWeapon.launchSpeed = 430;
       snowballWeapon.maxSnowballs = 16;
       snowballWeapon.timer = 0;
+
+      bombWeapon.unlocked = false;
+      bombWeapon.level = 0;
+      bombWeapon.cooldown = 76;
+      bombWeapon.timer = 0;
 
       healingPotion.unlocked = false;
       healingPotion.level = 0;
