@@ -314,6 +314,7 @@
         <div class="pill weapon" id="snowballPill" hidden><small>Snow</small><span id="snowball">-</span></div>
         <div class="pill weapon" id="bombPill" hidden><small>Bomb</small><span id="bomb">-</span></div>
         <div class="pill weapon" id="reactorPill" hidden><small>Reactor</small><span id="reactor">-</span></div>
+        <div class="pill weapon" id="bookPill" hidden><small>Book</small><span id="book">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
@@ -381,6 +382,7 @@
       snowball: document.querySelector("#snowball"),
       bomb: document.querySelector("#bomb"),
       reactor: document.querySelector("#reactor"),
+      book: document.querySelector("#book"),
       potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
@@ -403,6 +405,7 @@
       snowballPill: document.querySelector("#snowballPill"),
       bombPill: document.querySelector("#bombPill"),
       reactorPill: document.querySelector("#reactorPill"),
+      bookPill: document.querySelector("#bookPill"),
       potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
@@ -687,6 +690,15 @@
       cooldown: 18,
       damage: 34,
       splashRadius: 95,
+      timer: 0,
+    };
+
+    const ancientBook = {
+      unlocked: false,
+      level: 0,
+      cooldown: 13,
+      gemCount: 3,
+      gemValue: 3,
       timer: 0,
     };
 
@@ -1898,6 +1910,50 @@
         },
       },
       {
+        name: "Ancient Book",
+        text: "Occasionally drops EXP gems around the screen.",
+        weapon: "book",
+        unlock: true,
+        available: () => !ancientBook.unlocked,
+        apply: () => {
+          ancientBook.unlocked = true;
+          ancientBook.level = 1;
+          ancientBook.timer = 1.5;
+        },
+      },
+      {
+        name: "Quicker Pages",
+        text: "Ancient Book drops EXP 18% more often.",
+        weapon: "book",
+        available: () => ancientBook.unlocked,
+        apply: () => ancientBook.cooldown = Math.max(3.5, ancientBook.cooldown * 0.82),
+      },
+      {
+        name: "Richer Runes",
+        text: "Ancient Book gems are worth +2 EXP.",
+        weapon: "book",
+        available: () => ancientBook.unlocked,
+        apply: () => ancientBook.gemValue += 2,
+      },
+      {
+        name: "Extra Pages",
+        text: "Ancient Book drops one additional EXP gem.",
+        weapon: "book",
+        available: () => ancientBook.unlocked,
+        apply: () => ancientBook.gemCount += 1,
+      },
+      {
+        name: "Forgotten Chapter",
+        text: "Ancient Book drops more often and drops stronger gems.",
+        weapon: "book",
+        available: () => ancientBook.unlocked,
+        apply: () => {
+          ancientBook.cooldown = Math.max(3.5, ancientBook.cooldown * 0.9);
+          ancientBook.gemValue += 1;
+          ancientBook.gemCount += 1;
+        },
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -2056,6 +2112,7 @@
         + (snowballWeapon.unlocked ? 1 : 0)
         + (bombWeapon.unlocked ? 1 : 0)
         + (reactorWeapon.unlocked ? 1 : 0)
+        + (ancientBook.unlocked ? 1 : 0)
         + (healingPotion.unlocked ? 1 : 0);
     }
 
@@ -2086,6 +2143,7 @@
       ui.snowballPill.hidden = !snowballWeapon.unlocked;
       ui.bombPill.hidden = !bombWeapon.unlocked;
       ui.reactorPill.hidden = !reactorWeapon.unlocked;
+      ui.bookPill.hidden = !ancientBook.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
@@ -2108,6 +2166,7 @@
       ui.snowball.textContent = snowballWeapon.unlocked ? snowballWeapon.level : "-";
       ui.bomb.textContent = bombWeapon.unlocked ? bombWeapon.level : "-";
       ui.reactor.textContent = reactorWeapon.unlocked ? reactorWeapon.level : "-";
+      ui.book.textContent = ancientBook.unlocked ? ancientBook.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
@@ -2800,6 +2859,21 @@
       }
     }
 
+    function dropAncientBookGems() {
+      if (!ancientBook.unlocked) return;
+      for (let i = 0; i < ancientBook.gemCount; i += 1) {
+        const pos = randomScreenPosition(100);
+        gems.push({
+          x: pos.x,
+          y: pos.y,
+          radius: 8 + Math.min(8, ancientBook.gemValue * 0.45),
+          value: ancientBook.gemValue,
+          bob: Math.random() * Math.PI * 2,
+        });
+      }
+      floatText.push({ x: player.x, y: player.y - 54, text: "BOOK EXP", life: 0.8 });
+    }
+
     function splashFireball(ball) {
       explosions.push({
         x: ball.x,
@@ -3350,6 +3424,7 @@
             if (upgrade.weapon === "snowball") snowballWeapon.level += 1;
             if (upgrade.weapon === "bomb") bombWeapon.level += 1;
             if (upgrade.weapon === "reactor") reactorWeapon.level += 1;
+            if (upgrade.weapon === "book") ancientBook.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
@@ -3396,6 +3471,7 @@
       snowballWeapon.timer -= dt;
       bombWeapon.timer -= dt;
       reactorWeapon.timer -= dt;
+      ancientBook.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -3539,6 +3615,11 @@
       if (reactorWeapon.unlocked && reactorWeapon.timer <= 0) {
         triggerReactor();
         reactorWeapon.timer = reactorWeapon.cooldown;
+      }
+
+      if (ancientBook.unlocked && ancientBook.timer <= 0) {
+        dropAncientBookGems();
+        ancientBook.timer = ancientBook.cooldown;
       }
 
       if (healingPotion.unlocked && healingPotion.timer <= 0) {
@@ -4247,7 +4328,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -4471,6 +4552,13 @@
       reactorWeapon.damage = 34;
       reactorWeapon.splashRadius = 95;
       reactorWeapon.timer = 0;
+
+      ancientBook.unlocked = false;
+      ancientBook.level = 0;
+      ancientBook.cooldown = 13;
+      ancientBook.gemCount = 3;
+      ancientBook.gemValue = 3;
+      ancientBook.timer = 0;
 
       healingPotion.unlocked = false;
       healingPotion.level = 0;
