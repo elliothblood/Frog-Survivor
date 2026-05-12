@@ -313,6 +313,7 @@
         <div class="pill weapon" id="twigPill" hidden><small>Twig</small><span id="twig">-</span></div>
         <div class="pill weapon" id="snowballPill" hidden><small>Snow</small><span id="snowball">-</span></div>
         <div class="pill weapon" id="bombPill" hidden><small>Bomb</small><span id="bomb">-</span></div>
+        <div class="pill weapon" id="reactorPill" hidden><small>Reactor</small><span id="reactor">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
@@ -379,6 +380,7 @@
       twig: document.querySelector("#twig"),
       snowball: document.querySelector("#snowball"),
       bomb: document.querySelector("#bomb"),
+      reactor: document.querySelector("#reactor"),
       potion: document.querySelector("#potion"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
@@ -400,6 +402,7 @@
       twigPill: document.querySelector("#twigPill"),
       snowballPill: document.querySelector("#snowballPill"),
       bombPill: document.querySelector("#bombPill"),
+      reactorPill: document.querySelector("#reactorPill"),
       potionPill: document.querySelector("#potionPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
@@ -675,6 +678,15 @@
       unlocked: false,
       level: 0,
       cooldown: 76,
+      timer: 0,
+    };
+
+    const reactorWeapon = {
+      unlocked: false,
+      level: 0,
+      cooldown: 18,
+      damage: 34,
+      splashRadius: 95,
       timer: 0,
     };
 
@@ -1842,6 +1854,50 @@
         apply: () => bombWeapon.cooldown = Math.max(18, bombWeapon.cooldown * 0.75),
       },
       {
+        name: "Nuclear Reactor",
+        text: "Occasionally deletes one visible non-boss enemy, causing a damaging blast.",
+        weapon: "reactor",
+        unlock: true,
+        available: () => !reactorWeapon.unlocked,
+        apply: () => {
+          reactorWeapon.unlocked = true;
+          reactorWeapon.level = 1;
+          reactorWeapon.timer = reactorWeapon.cooldown;
+        },
+      },
+      {
+        name: "Hotter Core",
+        text: "Reactor splash damage +12.",
+        weapon: "reactor",
+        available: () => reactorWeapon.unlocked,
+        apply: () => reactorWeapon.damage += 12,
+      },
+      {
+        name: "Wider Fallout",
+        text: "Reactor splash size +20%.",
+        weapon: "reactor",
+        available: () => reactorWeapon.unlocked,
+        apply: () => reactorWeapon.splashRadius *= 1.2,
+      },
+      {
+        name: "Faster Meltdown",
+        text: "Reactor triggers 18% more often.",
+        weapon: "reactor",
+        available: () => reactorWeapon.unlocked,
+        apply: () => reactorWeapon.cooldown = Math.max(5.5, reactorWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Unstable Core",
+        text: "Reactor damage +6, splash size +10%, and trigger rate +10%.",
+        weapon: "reactor",
+        available: () => reactorWeapon.unlocked,
+        apply: () => {
+          reactorWeapon.damage += 6;
+          reactorWeapon.splashRadius *= 1.1;
+          reactorWeapon.cooldown = Math.max(5.5, reactorWeapon.cooldown * 0.9);
+        },
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -1999,6 +2055,7 @@
         + (twigWeapon.unlocked ? 1 : 0)
         + (snowballWeapon.unlocked ? 1 : 0)
         + (bombWeapon.unlocked ? 1 : 0)
+        + (reactorWeapon.unlocked ? 1 : 0)
         + (healingPotion.unlocked ? 1 : 0);
     }
 
@@ -2028,6 +2085,7 @@
       ui.twigPill.hidden = !twigWeapon.unlocked;
       ui.snowballPill.hidden = !snowballWeapon.unlocked;
       ui.bombPill.hidden = !bombWeapon.unlocked;
+      ui.reactorPill.hidden = !reactorWeapon.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
@@ -2049,6 +2107,7 @@
       ui.twig.textContent = twigWeapon.unlocked ? twigWeapon.level : "-";
       ui.snowball.textContent = snowballWeapon.unlocked ? snowballWeapon.level : "-";
       ui.bomb.textContent = bombWeapon.unlocked ? bombWeapon.level : "-";
+      ui.reactor.textContent = reactorWeapon.unlocked ? reactorWeapon.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
@@ -3031,6 +3090,50 @@
       }
     }
 
+    function triggerReactor() {
+      if (!reactorWeapon.unlocked) return;
+      const margin = 32;
+      const visibleTargets = enemies.filter((enemy) => {
+        if (enemy.dead || enemy.isBoss) return false;
+        const x = screenX(enemy.x);
+        const y = screenY(enemy.y);
+        return x >= -enemy.radius - margin
+          && x <= window.innerWidth + enemy.radius + margin
+          && y >= -enemy.radius - margin
+          && y <= window.innerHeight + enemy.radius + margin;
+      });
+      if (!visibleTargets.length) return;
+
+      const target = visibleTargets[Math.floor(Math.random() * visibleTargets.length)];
+      const blast = {
+        x: target.x,
+        y: target.y,
+        radius: reactorWeapon.splashRadius,
+        damage: reactorWeapon.damage,
+      };
+
+      explosions.push({
+        x: blast.x,
+        y: blast.y,
+        radius: blast.radius,
+        life: 0.36,
+        maxLife: 0.36,
+        color: "#b8ff66",
+      });
+      floatText.push({ x: target.x, y: target.y - target.radius - 10, text: "MELTDOWN", life: 0.75, danger: true });
+      killEnemy(target);
+
+      for (const enemy of nearbyEnemies(blast.x, blast.y, blast.radius + 42)) {
+        if (enemy.dead) continue;
+        const hitRange = blast.radius + enemy.radius;
+        if (distanceSq(enemy, blast) < hitRange * hitRange) {
+          damageEnemy(enemy, blast.damage);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(blast.damage), life: 0.38 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
     function syncSkyLasers() {
       if (!skyLaser.unlocked) return;
       while (skyLasers.length < skyLaser.count) {
@@ -3246,6 +3349,7 @@
             if (upgrade.weapon === "twig") twigWeapon.level += 1;
             if (upgrade.weapon === "snowball") snowballWeapon.level += 1;
             if (upgrade.weapon === "bomb") bombWeapon.level += 1;
+            if (upgrade.weapon === "reactor") reactorWeapon.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
           }
           ui.levelUp.classList.remove("show");
@@ -3291,6 +3395,7 @@
       twigWeapon.timer -= dt;
       snowballWeapon.timer -= dt;
       bombWeapon.timer -= dt;
+      reactorWeapon.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -3429,6 +3534,11 @@
       if (bombWeapon.unlocked && bombWeapon.timer <= 0) {
         detonateBomb();
         bombWeapon.timer = bombWeapon.cooldown;
+      }
+
+      if (reactorWeapon.unlocked && reactorWeapon.timer <= 0) {
+        triggerReactor();
+        reactorWeapon.timer = reactorWeapon.cooldown;
       }
 
       if (healingPotion.unlocked && healingPotion.timer <= 0) {
@@ -4137,7 +4247,7 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -4354,6 +4464,13 @@
       bombWeapon.level = 0;
       bombWeapon.cooldown = 76;
       bombWeapon.timer = 0;
+
+      reactorWeapon.unlocked = false;
+      reactorWeapon.level = 0;
+      reactorWeapon.cooldown = 18;
+      reactorWeapon.damage = 34;
+      reactorWeapon.splashRadius = 95;
+      reactorWeapon.timer = 0;
 
       healingPotion.unlocked = false;
       healingPotion.level = 0;
