@@ -2432,9 +2432,12 @@
         + (snowballWeapon.unlocked ? 1 : 0)
         + (bombWeapon.unlocked ? 1 : 0)
         + (reactorWeapon.unlocked ? 1 : 0)
-        + (ancientBook.unlocked ? 1 : 0)
-        + (healingPotion.unlocked ? 1 : 0)
-        + supportBoostIds.reduce((total, id) => total + (supportBoosts[id].unlocked ? 1 : 0), 0);
+        + (ancientBook.unlocked ? 1 : 0);
+    }
+
+    function ownedBoostCount() {
+      return supportBoostIds.reduce((total, id) => total + (supportBoosts[id].unlocked ? 1 : 0), 0)
+        + (healingPotion.unlocked ? 1 : 0);
     }
 
     function updateUi() {
@@ -3712,8 +3715,9 @@
         : "The world pauses while you sharpen the build.";
 
       const canAddWeapon = ownedWeaponCount() < 5;
+      const canAddBoost = ownedBoostCount() < 5;
       const availableUpgrades = upgradePool
-        .filter((upgrade) => (!upgrade.unlock || canAddWeapon)
+        .filter((upgrade) => (!upgrade.unlock || (upgrade.isBoost ? canAddBoost : canAddWeapon))
           && (!choosingStarter || (upgrade.unlock && upgrade.starter !== false && !upgrade.isBoost))
           && (!upgrade.rareChance || Math.random() < upgrade.rareChance)
           && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock)
