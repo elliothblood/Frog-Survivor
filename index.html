@@ -316,6 +316,12 @@
         <div class="pill weapon" id="reactorPill" hidden><small>Reactor</small><span id="reactor">-</span></div>
         <div class="pill weapon" id="bookPill" hidden><small>Book</small><span id="book">-</span></div>
         <div class="pill weapon" id="potionPill" hidden><small>Potion</small><span id="potion">-</span></div>
+        <div class="pill weapon" id="powerPill" hidden><small>Power</small><span id="power">-</span></div>
+        <div class="pill weapon" id="growPill" hidden><small>Grow</small><span id="grow">-</span></div>
+        <div class="pill weapon" id="spacePill" hidden><small>Space</small><span id="space">-</span></div>
+        <div class="pill weapon" id="bootsPill" hidden><small>Boots</small><span id="boots">-</span></div>
+        <div class="pill weapon" id="heartRootPill" hidden><small>Root</small><span id="heartRoot">-</span></div>
+        <div class="pill weapon" id="clockPill" hidden><small>Clock</small><span id="clock">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -384,6 +390,12 @@
       reactor: document.querySelector("#reactor"),
       book: document.querySelector("#book"),
       potion: document.querySelector("#potion"),
+      power: document.querySelector("#power"),
+      grow: document.querySelector("#grow"),
+      space: document.querySelector("#space"),
+      boots: document.querySelector("#boots"),
+      heartRoot: document.querySelector("#heartRoot"),
+      clock: document.querySelector("#clock"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -407,6 +419,12 @@
       reactorPill: document.querySelector("#reactorPill"),
       bookPill: document.querySelector("#bookPill"),
       potionPill: document.querySelector("#potionPill"),
+      powerPill: document.querySelector("#powerPill"),
+      growPill: document.querySelector("#growPill"),
+      spacePill: document.querySelector("#spacePill"),
+      bootsPill: document.querySelector("#bootsPill"),
+      heartRootPill: document.querySelector("#heartRootPill"),
+      clockPill: document.querySelector("#clockPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -724,6 +742,22 @@
       iceSlow: 0,
     };
 
+    const supportBoosts = {
+      power: { unlocked: false, level: 0 },
+      grow: { unlocked: false, level: 0 },
+      space: { unlocked: false, level: 0 },
+      boots: { unlocked: false, level: 0 },
+      heartRoot: { unlocked: false, level: 0 },
+      clock: { unlocked: false, level: 0 },
+    };
+
+    const boostStats = {
+      damage: 1,
+      size: 1,
+      duration: 1,
+      fireRate: 1,
+    };
+
     const enemies = [];
     const projectiles = [];
     const tadpoles = [];
@@ -766,6 +800,115 @@
       dx: 0,
       dy: 0,
     };
+
+    const weaponById = {
+      crossbow,
+      wand,
+      sword,
+      asteroid: asteroidBelt,
+      lightning: lightningOrb,
+      ring: energyRing,
+      sky: skyLaser,
+      mine: landMine,
+      tadpole: tadpoleWeapon,
+      tongue: tongueWeapon,
+      puddle: puddleWeapon,
+      rain: rainWeapon,
+      banana: bananaWeapon,
+      shock: shockWaveWeapon,
+      fireball: fireballWeapon,
+      icicle: icicleWeapon,
+      bubble: bubbleWeapon,
+      splash: splashWeapon,
+      twig: twigWeapon,
+      snowball: snowballWeapon,
+      bomb: bombWeapon,
+      reactor: reactorWeapon,
+      book: ancientBook,
+      potion: healingPotion,
+    };
+
+    const nonBoostWeaponIds = Object.keys(weaponById);
+    const supportBoostIds = Object.keys(supportBoosts);
+
+    function isBoostWeapon(id) {
+      return supportBoostIds.includes(id);
+    }
+
+    function isNonBoostDamageWeapon(id) {
+      const weapon = weaponById[id];
+      return Boolean(weapon && weapon.unlocked && id !== "book" && id !== "potion");
+    }
+
+    function applyDamageMultiplier(weapon, multiplier) {
+      if (typeof weapon.damage === "number") weapon.damage *= multiplier;
+      if (typeof weapon.burnDamage === "number") weapon.burnDamage *= multiplier;
+    }
+
+    function applySizeMultiplier(weapon, multiplier) {
+      if (typeof weapon.size === "number") weapon.size *= multiplier;
+      if (typeof weapon.radius === "number") weapon.radius *= multiplier;
+      if (typeof weapon.splashRadius === "number") weapon.splashRadius *= multiplier;
+      if (typeof weapon.range === "number") weapon.range *= multiplier;
+      if (typeof weapon.width === "number") weapon.width *= multiplier;
+      if (typeof weapon.orbitRadius === "number") weapon.orbitRadius *= multiplier;
+    }
+
+    function applyDurationMultiplier(weapon, multiplier) {
+      if (typeof weapon.duration === "number") weapon.duration *= multiplier;
+    }
+
+    function applyFireRateMultiplier(weapon, multiplier) {
+      if (typeof weapon.cooldown === "number") weapon.cooldown = Math.max(0.12, weapon.cooldown * multiplier);
+      if (typeof weapon.dropEvery === "number") weapon.dropEvery = Math.max(0.25, weapon.dropEvery * multiplier);
+      if (typeof weapon.spawnEvery === "number") weapon.spawnEvery = Math.max(0.55, weapon.spawnEvery * multiplier);
+      if (typeof weapon.tickRate === "number") weapon.tickRate = Math.max(0.08, weapon.tickRate * multiplier);
+    }
+
+    function applyToUnlockedDamageWeapons(apply) {
+      for (const id of nonBoostWeaponIds) {
+        if (isNonBoostDamageWeapon(id)) apply(weaponById[id]);
+      }
+    }
+
+    function applySupportBoostsToNewWeapon(id) {
+      const weapon = weaponById[id];
+      if (!weapon || id === "book" || id === "potion") return;
+      applyDamageMultiplier(weapon, boostStats.damage);
+      applySizeMultiplier(weapon, boostStats.size);
+      applyDurationMultiplier(weapon, boostStats.duration);
+      applyFireRateMultiplier(weapon, boostStats.fireRate);
+    }
+
+    function unlockBoost(id) {
+      supportBoosts[id].unlocked = true;
+      supportBoosts[id].level = 1;
+    }
+
+    function boostDamage(multiplier) {
+      boostStats.damage *= multiplier;
+      applyToUnlockedDamageWeapons((weapon) => applyDamageMultiplier(weapon, multiplier));
+    }
+
+    function boostSize(multiplier) {
+      boostStats.size *= multiplier;
+      applyToUnlockedDamageWeapons((weapon) => applySizeMultiplier(weapon, multiplier));
+    }
+
+    function boostDuration(multiplier) {
+      boostStats.duration *= multiplier;
+      applyToUnlockedDamageWeapons((weapon) => applyDurationMultiplier(weapon, multiplier));
+    }
+
+    function boostFireRate(multiplier) {
+      boostStats.fireRate *= multiplier;
+      applyToUnlockedDamageWeapons((weapon) => applyFireRateMultiplier(weapon, multiplier));
+    }
+
+    function boostMaxHealth(amount) {
+      player.maxHp += amount;
+      player.hp = Math.min(player.maxHp, player.hp + amount);
+    }
 
     const upgradePool = [
       {
@@ -1914,6 +2057,7 @@
         text: "Occasionally drops EXP gems around the screen.",
         weapon: "book",
         unlock: true,
+        starter: false,
         available: () => !ancientBook.unlocked,
         apply: () => {
           ancientBook.unlocked = true;
@@ -1954,10 +2098,186 @@
         },
       },
       {
+        name: "Power Stone",
+        text: "A boost weapon. Non-boost weapons deal 10% more damage.",
+        weapon: "power",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.power.unlocked,
+        apply: () => {
+          unlockBoost("power");
+          boostDamage(1.1);
+        },
+      },
+      {
+        name: "Spark Bite",
+        text: "Power Stone gives non-boost weapons 8% more damage.",
+        weapon: "power",
+        isBoost: true,
+        available: () => supportBoosts.power.unlocked,
+        apply: () => boostDamage(1.08),
+      },
+      {
+        name: "Heavy Glow",
+        text: "Power Stone gives non-boost weapons 12% more damage.",
+        weapon: "power",
+        isBoost: true,
+        available: () => supportBoosts.power.unlocked,
+        apply: () => boostDamage(1.12),
+      },
+      {
+        name: "Grow Bean",
+        text: "A boost weapon. Non-boost weapon attacks become 10% larger.",
+        weapon: "grow",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.grow.unlocked,
+        apply: () => {
+          unlockBoost("grow");
+          boostSize(1.1);
+        },
+      },
+      {
+        name: "Beanstalk Pop",
+        text: "Grow Bean makes non-boost attacks 8% larger.",
+        weapon: "grow",
+        isBoost: true,
+        available: () => supportBoosts.grow.unlocked,
+        apply: () => boostSize(1.08),
+      },
+      {
+        name: "Big Sprout",
+        text: "Grow Bean makes non-boost attacks 12% larger.",
+        weapon: "grow",
+        isBoost: true,
+        available: () => supportBoosts.grow.unlocked,
+        apply: () => boostSize(1.12),
+      },
+      {
+        name: "Space Orb",
+        text: "A boost weapon. Non-boost weapon effects last 15% longer.",
+        weapon: "space",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.space.unlocked,
+        apply: () => {
+          unlockBoost("space");
+          boostDuration(1.15);
+        },
+      },
+      {
+        name: "Long Orbit",
+        text: "Space Orb makes non-boost effects last 10% longer.",
+        weapon: "space",
+        isBoost: true,
+        available: () => supportBoosts.space.unlocked,
+        apply: () => boostDuration(1.1),
+      },
+      {
+        name: "Deep Time",
+        text: "Space Orb makes non-boost effects last 15% longer.",
+        weapon: "space",
+        isBoost: true,
+        available: () => supportBoosts.space.unlocked,
+        apply: () => boostDuration(1.15),
+      },
+      {
+        name: "Swift Boots",
+        text: "A boost weapon. Player movement speed +18.",
+        weapon: "boots",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.boots.unlocked,
+        apply: () => {
+          unlockBoost("boots");
+          player.speed += 18;
+        },
+      },
+      {
+        name: "Hop Polish",
+        text: "Swift Boots give player movement speed +14.",
+        weapon: "boots",
+        isBoost: true,
+        available: () => supportBoosts.boots.unlocked,
+        apply: () => player.speed += 14,
+      },
+      {
+        name: "Mud Skates",
+        text: "Swift Boots give player movement speed +22.",
+        weapon: "boots",
+        isBoost: true,
+        available: () => supportBoosts.boots.unlocked,
+        apply: () => player.speed += 22,
+      },
+      {
+        name: "Heart Root",
+        text: "A boost weapon. Player max health +25 and heals that much.",
+        weapon: "heartRoot",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.heartRoot.unlocked,
+        apply: () => {
+          unlockBoost("heartRoot");
+          boostMaxHealth(25);
+        },
+      },
+      {
+        name: "Thick Bark",
+        text: "Heart Root gives max health +20 and heals that much.",
+        weapon: "heartRoot",
+        isBoost: true,
+        available: () => supportBoosts.heartRoot.unlocked,
+        apply: () => boostMaxHealth(20),
+      },
+      {
+        name: "Red Bloom",
+        text: "Heart Root gives max health +35 and heals that much.",
+        weapon: "heartRoot",
+        isBoost: true,
+        available: () => supportBoosts.heartRoot.unlocked,
+        apply: () => boostMaxHealth(35),
+      },
+      {
+        name: "Clock Seed",
+        text: "A boost weapon. Non-boost weapons fire 10% faster.",
+        weapon: "clock",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.clock.unlocked,
+        apply: () => {
+          unlockBoost("clock");
+          boostFireRate(0.9);
+        },
+      },
+      {
+        name: "Quick Tick",
+        text: "Clock Seed makes non-boost weapons fire 8% faster.",
+        weapon: "clock",
+        isBoost: true,
+        available: () => supportBoosts.clock.unlocked,
+        apply: () => boostFireRate(0.92),
+      },
+      {
+        name: "Fast Hands",
+        text: "Clock Seed makes non-boost weapons fire 12% faster.",
+        weapon: "clock",
+        isBoost: true,
+        available: () => supportBoosts.clock.unlocked,
+        apply: () => boostFireRate(0.88),
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
         unlock: true,
+        isBoost: true,
+        starter: false,
         available: () => !healingPotion.unlocked,
         apply: () => {
           healingPotion.unlocked = true;
@@ -2113,7 +2433,8 @@
         + (bombWeapon.unlocked ? 1 : 0)
         + (reactorWeapon.unlocked ? 1 : 0)
         + (ancientBook.unlocked ? 1 : 0)
-        + (healingPotion.unlocked ? 1 : 0);
+        + (healingPotion.unlocked ? 1 : 0)
+        + supportBoostIds.reduce((total, id) => total + (supportBoosts[id].unlocked ? 1 : 0), 0);
     }
 
     function updateUi() {
@@ -2145,6 +2466,12 @@
       ui.reactorPill.hidden = !reactorWeapon.unlocked;
       ui.bookPill.hidden = !ancientBook.unlocked;
       ui.potionPill.hidden = !healingPotion.unlocked;
+      ui.powerPill.hidden = !supportBoosts.power.unlocked;
+      ui.growPill.hidden = !supportBoosts.grow.unlocked;
+      ui.spacePill.hidden = !supportBoosts.space.unlocked;
+      ui.bootsPill.hidden = !supportBoosts.boots.unlocked;
+      ui.heartRootPill.hidden = !supportBoosts.heartRoot.unlocked;
+      ui.clockPill.hidden = !supportBoosts.clock.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -2168,6 +2495,12 @@
       ui.reactor.textContent = reactorWeapon.unlocked ? reactorWeapon.level : "-";
       ui.book.textContent = ancientBook.unlocked ? ancientBook.level : "-";
       ui.potion.textContent = healingPotion.unlocked ? healingPotion.level : "-";
+      ui.power.textContent = supportBoosts.power.unlocked ? supportBoosts.power.level : "-";
+      ui.grow.textContent = supportBoosts.grow.unlocked ? supportBoosts.grow.level : "-";
+      ui.space.textContent = supportBoosts.space.unlocked ? supportBoosts.space.level : "-";
+      ui.boots.textContent = supportBoosts.boots.unlocked ? supportBoosts.boots.level : "-";
+      ui.heartRoot.textContent = supportBoosts.heartRoot.unlocked ? supportBoosts.heartRoot.level : "-";
+      ui.clock.textContent = supportBoosts.clock.unlocked ? supportBoosts.clock.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -3381,6 +3714,7 @@
       const canAddWeapon = ownedWeaponCount() < 5;
       const availableUpgrades = upgradePool
         .filter((upgrade) => (!upgrade.unlock || canAddWeapon)
+          && (!choosingStarter || (upgrade.unlock && upgrade.starter !== false && !upgrade.isBoost))
           && (!upgrade.rareChance || Math.random() < upgrade.rareChance)
           && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock)
           && (!upgrade.available || upgrade.available()));
@@ -3401,6 +3735,9 @@
         button.innerHTML = `<strong>${upgrade.name}</strong><span>${upgrade.text}</span>`;
         button.addEventListener("click", () => {
           upgrade.apply();
+          if (upgrade.unlock && !upgrade.isBoost) {
+            applySupportBoostsToNewWeapon(upgrade.weapon);
+          }
           if (!upgrade.unlock) {
             if (upgrade.weapon === "wand") wand.level += 1;
             if (upgrade.weapon === "crossbow") crossbow.level += 1;
@@ -3426,6 +3763,7 @@
             if (upgrade.weapon === "reactor") reactorWeapon.level += 1;
             if (upgrade.weapon === "book") ancientBook.level += 1;
             if (upgrade.weapon === "potion") healingPotion.level += 1;
+            if (isBoostWeapon(upgrade.weapon)) supportBoosts[upgrade.weapon].level += 1;
           }
           ui.levelUp.classList.remove("show");
           if (world.pendingUpgrades > 0) {
@@ -4328,7 +4666,11 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}`;
+      const boostSummary = supportBoostIds
+        .filter((id) => supportBoosts[id].unlocked)
+        .map((id) => `${id} ${supportBoosts[id].level}`)
+        .join(" - ");
+      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
       ui.gameOver.classList.add("show");
       ui.restart.focus();
     }
@@ -4346,6 +4688,8 @@
 
       player.x = world.width / 2;
       player.y = world.height / 2;
+      player.speed = 245;
+      player.maxHp = 100;
       player.hp = player.maxHp;
       player.hurtTimer = 0;
       player.level = 1;
@@ -4577,6 +4921,15 @@
       potionBuff.fireDamage = 0;
       potionBuff.iceTime = 0;
       potionBuff.iceSlow = 0;
+
+      boostStats.damage = 1;
+      boostStats.size = 1;
+      boostStats.duration = 1;
+      boostStats.fireRate = 1;
+      for (const id of supportBoostIds) {
+        supportBoosts[id].unlocked = false;
+        supportBoosts[id].level = 0;
+      }
 
       enemies.length = 0;
       projectiles.length = 0;
