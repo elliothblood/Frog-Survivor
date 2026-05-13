@@ -3722,15 +3722,9 @@
           && (!upgrade.rareChance || Math.random() < upgrade.rareChance)
           && (upgrade.weapon !== "crossbow" || crossbow.unlocked || upgrade.unlock)
           && (!upgrade.available || upgrade.available()));
-      const guaranteed = availableUpgrades
-        .filter((upgrade) => upgrade.unlock)
+      const choices = availableUpgrades
         .sort(() => Math.random() - 0.5)
         .slice(0, 3);
-      const choices = availableUpgrades
-        .filter((upgrade) => !guaranteed.includes(upgrade))
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3 - guaranteed.length);
-      choices.unshift(...guaranteed);
 
       for (const upgrade of choices) {
         const button = document.createElement("button");
