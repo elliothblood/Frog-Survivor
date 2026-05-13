@@ -451,6 +451,7 @@
       cameraX: 0,
       cameraY: 0,
       pendingUpgrades: 0,
+      difficulty: 5,
     };
 
     const player = {
@@ -2531,6 +2532,30 @@
       };
     }
 
+    function difficultyTuning() {
+      const d = clamp(world.difficulty, 1, 20);
+      const below = Math.max(0, 5 - d);
+      const above = Math.max(0, d - 5);
+      return {
+        health: Math.max(0.5, 1 - below * 0.11 + above * 0.11),
+        damage: Math.max(0.55, 1 - below * 0.09 + above * 0.08),
+        speed: Math.max(0.72, 1 - below * 0.045 + above * 0.035),
+        spawnInterval: Math.max(0.42, 1 + below * 0.18 - above * 0.035),
+        softCap: Math.max(0.65, 1 - below * 0.08 + above * 0.05),
+        bossInterval: Math.max(0.45, 1 + below * 0.2 - above * 0.035),
+        antInterval: Math.max(0.5, 1 + below * 0.18 - above * 0.03),
+        extraSpawnChance: Math.min(0.95, above * 0.055),
+        thirdSpawnChance: Math.max(0, (above - 8) * 0.045),
+      };
+    }
+
+    function scaleEnemyStats(stats, tuning = difficultyTuning()) {
+      stats.hp *= tuning.health;
+      stats.speed *= tuning.speed;
+      stats.damage *= tuning.damage;
+      return stats;
+    }
+
     function spawnEnemy() {
       const pos = randomEdgePosition();
       const minutes = world.time / 60;
@@ -2555,7 +2580,7 @@
       const tierPower = Math.pow(1.28, eraTier);
       const dragonflyPower = Math.pow(1.18, cycle);
 
-      const stats = {
+      const stats = scaleEnemyStats({
         fly: {
           radius: 16,
           hp: 34 * tierPower,
@@ -2605,7 +2630,7 @@
           damage: 9 + eraTier * 2,
           color: "#4b3c4f",
         },
-      }[type];
+      }[type]);
 
       const enemy = {
         id: nextEnemyId,
@@ -2667,6 +2692,7 @@
     function spawnBoss() {
       if (enemies.some((enemy) => enemy.isBoss && !enemy.dead)) return;
       const pos = randomEdgePosition();
+      const tuning = difficultyTuning();
       const averageHp = averageNonBossHp();
       const mouseHp = Math.max(780, averageHp * 12);
       const bossTypes = ["mouse", "queenBee", "bird", "worm"];
@@ -2702,6 +2728,9 @@
           color: "#b56b7a",
         },
       }[type];
+      stats.hp *= tuning.health;
+      stats.speed *= tuning.speed;
+      stats.damage *= tuning.damage;
       const boss = makeBossBase(type, pos, stats.radius, stats.hp, stats.speed, stats.damage, stats.color);
       if (type === "mouse") boss.shotTimer = 1.2;
       if (type === "queenBee") boss.spawnTimer = 2.2;
@@ -2714,9 +2743,10 @@
     }
 
     function spawnAntSwarm() {
+      const tuning = difficultyTuning();
       const averageHp = averageNonBossHp(45 + world.time * 0.25);
-      const count = 76 + Math.min(84, Math.floor(world.time / 26));
-      const antHp = Math.max(28, averageHp * 0.65);
+      const count = Math.round((76 + Math.min(84, Math.floor(world.time / 26))) * Math.max(0.7, tuning.softCap));
+      const antHp = Math.max(28, averageHp * 0.65) * tuning.health;
 
       for (let i = 0; i < count; i += 1) {
         const side = i % 4;
@@ -2736,8 +2766,8 @@
           radius: 12,
           hp: antHp,
           maxHp: antHp,
-          speed: 38 + Math.min(18, world.time / 90),
-          damage: 8 + Math.floor(world.time / 180) * 2,
+          speed: (38 + Math.min(18, world.time / 90)) * tuning.speed,
+          damage: (8 + Math.floor(world.time / 180) * 2) * tuning.damage,
           color: "#2c211c",
           type: "ant",
           pulse: Math.random() * Math.PI * 2,
@@ -2751,6 +2781,7 @@
     }
 
     function spawnBee(queen) {
+      const tuning = difficultyTuning();
       const hp = Math.max(36, averageNonBossHp(45) * 0.75);
       const angle = Math.random() * Math.PI * 2;
       addEnemy({
@@ -2758,10 +2789,10 @@
         x: clamp(queen.x + Math.cos(angle) * 36, 0, world.width),
         y: clamp(queen.y + Math.sin(angle) * 36, 0, world.height),
         radius: 14,
-        hp,
-        maxHp: hp,
-        speed: 64 + Math.min(18, world.time / 120),
-        damage: 9 + Math.floor(world.time / 180) * 2,
+        hp: hp * tuning.health,
+        maxHp: hp * tuning.health,
+        speed: (64 + Math.min(18, world.time / 120)) * tuning.speed,
+        damage: (9 + Math.floor(world.time / 180) * 2) * tuning.damage,
         color: "#d9b232",
         type: "bee",
         pulse: Math.random() * Math.PI * 2,
@@ -3838,25 +3869,28 @@
         const eraLength = 42;
         const era = Math.floor(world.time / eraLength) % 6;
         const cycle = Math.floor(world.time / (eraLength * 6));
+        const tuning = difficultyTuning();
         const regularCount = livingRegularEnemyCount();
-        const softCap = Math.min(175, 88 + Math.floor(world.time / 55) + cycle * 8);
-        const spawnCount = regularCount >= softCap ? 0 : regularCount < softCap * 0.55 && world.time > 180 ? 2 : 1;
+        const softCap = Math.min(240, (88 + Math.floor(world.time / 55) + cycle * 8) * tuning.softCap);
+        let spawnCount = regularCount >= softCap ? 0 : regularCount < softCap * 0.55 && world.time > 180 ? 2 : 1;
+        if (spawnCount > 0 && Math.random() < tuning.extraSpawnChance) spawnCount += 1;
+        if (spawnCount > 0 && Math.random() < tuning.thirdSpawnChance) spawnCount += 1;
         for (let i = 0; i < spawnCount; i += 1) spawnEnemy();
         const timePressure = Math.min(0.42, world.time * 0.00075);
         const cyclePressure = Math.min(0.28, cycle * 0.045);
         const tierBreathingRoom = era * 0.018;
-        world.spawnEvery = Math.max(0.38, 0.82 - timePressure - cyclePressure + tierBreathingRoom);
+        world.spawnEvery = Math.max(0.24, (0.82 - timePressure - cyclePressure + tierBreathingRoom) * tuning.spawnInterval);
         world.spawnTimer = world.spawnEvery;
       }
 
       if (world.bossTimer <= 0) {
         spawnBoss();
-        world.bossTimer = 85 + Math.random() * 35;
+        world.bossTimer = (85 + Math.random() * 35) * difficultyTuning().bossInterval;
       }
 
       if (world.antTimer <= 0) {
         spawnAntSwarm();
-        world.antTimer = 95 + Math.random() * 55;
+        world.antTimer = (95 + Math.random() * 55) * difficultyTuning().antInterval;
       }
 
       rebuildSpatialGrid();
@@ -4680,9 +4714,55 @@
       ui.restart.focus();
     }
 
+    function beginRun() {
+      const tuning = difficultyTuning();
+      world.paused = false;
+      world.spawnTimer = 0;
+      world.bossTimer = (55 + Math.max(0, 5 - world.difficulty) * 8) * tuning.bossInterval;
+      world.antTimer = (34 + Math.max(0, 5 - world.difficulty) * 6) * tuning.antInterval;
+      const openingEnemies = Math.max(2, Math.round(6 * tuning.softCap));
+      for (let i = 0; i < openingEnemies; i += 1) spawnEnemy();
+      openUpgradeChoice();
+    }
+
+    function openDifficultyChoice() {
+      world.paused = true;
+      ui.levelUp.classList.add("show");
+      ui.upgradeGrid.innerHTML = "";
+      ui.upgradeTitle.textContent = "Choose difficulty";
+      ui.upgradeSubtitle.textContent = "Difficulty 5 is normal. Higher numbers make enemies and bosses nastier.";
+
+      for (let difficulty = 1; difficulty <= 20; difficulty += 1) {
+        const button = document.createElement("button");
+        button.className = "upgrade";
+        button.type = "button";
+        const label = difficulty === 1
+          ? "Gentle Pond"
+          : difficulty === 5
+            ? "Normal Swamp"
+            : difficulty === 20
+              ? "Nightmare Bog"
+              : difficulty < 5
+                ? "Easy Run"
+                : difficulty < 12
+                  ? "Hard Run"
+                  : "Brutal Run";
+        button.innerHTML = `<strong>${difficulty}</strong><span>${label}</span>`;
+        button.addEventListener("click", () => {
+          world.difficulty = difficulty;
+          ui.levelUp.classList.remove("show");
+          beginRun();
+        });
+        ui.upgradeGrid.appendChild(button);
+      }
+
+      const normal = ui.upgradeGrid.querySelector("button:nth-child(5)");
+      if (normal) normal.focus();
+    }
+
     function restartRun() {
       world.time = 0;
-      world.paused = false;
+      world.paused = true;
       world.ended = false;
       world.spawnTimer = 0;
       world.spawnEvery = 0.9;
@@ -4690,6 +4770,7 @@
       world.antTimer = 34;
       world.heartTimer = 7;
       world.pendingUpgrades = 0;
+      world.difficulty = 5;
 
       player.x = world.width / 2;
       player.y = world.height / 2;
@@ -4968,8 +5049,7 @@
       ui.gameOver.classList.remove("show");
       ui.levelUp.classList.remove("show");
       updateUi();
-      for (let i = 0; i < 6; i += 1) spawnEnemy();
-      openUpgradeChoice();
+      openDifficultyChoice();
     }
 
     function screenX(x) {
@@ -6606,9 +6686,7 @@
     }
 
     resize();
-    updateUi();
-    for (let i = 0; i < 6; i += 1) spawnEnemy();
-    openUpgradeChoice();
+    restartRun();
     requestAnimationFrame(loop);
   </script>
 </body>
