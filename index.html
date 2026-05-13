@@ -2633,6 +2633,13 @@
         : fallback;
     }
 
+    function livingRegularEnemyCount() {
+      return enemies.filter((enemy) => !enemy.dead
+        && !enemy.isBoss
+        && enemy.type !== "ant"
+        && enemy.type !== "bee").length;
+    }
+
     function addEnemy(enemy) {
       enemies.push(enemy);
       enemyById.set(enemy.id, enemy);
@@ -3831,9 +3838,9 @@
         const eraLength = 42;
         const era = Math.floor(world.time / eraLength) % 6;
         const cycle = Math.floor(world.time / (eraLength * 6));
-        const eraTier = era + cycle * 6;
-        const softCap = Math.min(145, Math.max(55, 95 + Math.floor(world.time / 75) - eraTier * 3));
-        const spawnCount = enemies.length > softCap ? 0 : 1;
+        const regularCount = livingRegularEnemyCount();
+        const softCap = Math.min(175, 88 + Math.floor(world.time / 55) + cycle * 8);
+        const spawnCount = regularCount >= softCap ? 0 : regularCount < softCap * 0.55 && world.time > 180 ? 2 : 1;
         for (let i = 0; i < spawnCount; i += 1) spawnEnemy();
         const timePressure = Math.min(0.42, world.time * 0.00075);
         const cyclePressure = Math.min(0.28, cycle * 0.045);
