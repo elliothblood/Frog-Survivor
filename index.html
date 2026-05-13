@@ -223,6 +223,31 @@
       line-height: 1.45;
     }
 
+    .upgrade-panel.difficulty-mode {
+      width: min(620px, 100%);
+    }
+
+    .difficulty-mode .upgrade-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .difficulty-mode .upgrade {
+      min-height: 64px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .difficulty-mode .upgrade strong {
+      margin-bottom: 2px;
+      font-size: 18px;
+    }
+
+    .difficulty-mode .upgrade span {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
     .touch-stick {
       position: fixed;
       left: 24px;
@@ -275,6 +300,15 @@
 
       .upgrade {
         min-height: 126px;
+      }
+
+      .difficulty-mode .upgrade-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .difficulty-mode .upgrade {
+        min-height: 58px;
+        padding: 7px 6px;
       }
 
       .touch-stick {
@@ -335,7 +369,7 @@
   </div>
 
   <div class="level-up" id="levelUp">
-    <div class="upgrade-panel">
+    <div class="upgrade-panel" id="choicePanel">
       <h1 id="upgradeTitle">Choose an upgrade</h1>
       <p id="upgradeSubtitle">The world pauses while you sharpen the build.</p>
       <div class="upgrade-grid" id="upgradeGrid"></div>
@@ -428,6 +462,7 @@
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
+      choicePanel: document.querySelector("#choicePanel"),
       upgradeTitle: document.querySelector("#upgradeTitle"),
       upgradeSubtitle: document.querySelector("#upgradeSubtitle"),
       upgradeGrid: document.querySelector("#upgradeGrid"),
@@ -3745,6 +3780,7 @@
       world.pendingUpgrades = Math.max(0, world.pendingUpgrades - 1);
       world.paused = true;
       ui.levelUp.classList.add("show");
+      ui.choicePanel.classList.remove("difficulty-mode");
       ui.upgradeGrid.innerHTML = "";
       const choosingStarter = ownedWeaponCount() === 0;
       ui.upgradeTitle.textContent = choosingStarter ? "Choose a starting weapon" : "Choose an upgrade";
@@ -4728,6 +4764,7 @@
     function openDifficultyChoice() {
       world.paused = true;
       ui.levelUp.classList.add("show");
+      ui.choicePanel.classList.add("difficulty-mode");
       ui.upgradeGrid.innerHTML = "";
       ui.upgradeTitle.textContent = "Choose difficulty";
       ui.upgradeSubtitle.textContent = "Difficulty 5 is normal. Higher numbers make enemies and bosses nastier.";
