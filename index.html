@@ -460,11 +460,34 @@
     </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   <script>
     const canvas = document.querySelector("#game");
     const ctx = canvas.getContext("2d");
     const bananaImage = new Image();
     bananaImage.src = "banana-cutout.png";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAmgJLA-dvYT7fNDGu2d2OBke3JR4k8FQo",
+      authDomain: "frog-survivor.firebaseapp.com",
+      databaseURL: "https://frog-survivor-default-rtdb.firebaseio.com",
+      projectId: "frog-survivor",
+      storageBucket: "frog-survivor.firebasestorage.app",
+      messagingSenderId: "611603498970",
+      appId: "1:611603498970:web:954ce771188e554b67a2e3",
+      measurementId: "G-E3975RLQQ9",
+    };
+
+    let leaderboardDb = null;
+    try {
+      if (window.firebase) {
+        firebase.initializeApp(firebaseConfig);
+        leaderboardDb = firebase.database();
+      }
+    } catch (error) {
+      leaderboardDb = null;
+    }
 
     const ui = {
       level: document.querySelector("#level"),
@@ -1052,8 +1075,15 @@
       localStorage.setItem(leaderboardKey, JSON.stringify(leaderboards));
     }
 
+    function saveLocalScores(difficultyId, scores) {
+      const leaderboards = loadLeaderboards();
+      leaderboards[difficultyId] = sortScores(scores);
+      saveLeaderboards(leaderboards);
+    }
+
     function sortScores(scores) {
       return scores
+        .filter((score) => score && typeof score.level === "number" && typeof score.kills === "number")
         .slice()
         .sort((a, b) => (b.level - a.level) || (b.kills - a.kills) || (a.time - b.time))
         .slice(0, 10);
@@ -1066,10 +1096,41 @@
       return score.level > last.level || (score.level === last.level && score.kills > last.kills);
     }
 
-    function renderLeaderboard(difficultyId = world.difficultyId) {
+    async function loadScoresForDifficulty(difficultyId) {
+      if (leaderboardDb) {
+        try {
+          const snapshot = await leaderboardDb.ref(`leaderboards/${difficultyId}`).once("value");
+          const value = snapshot.val();
+          const scores = Array.isArray(value) ? value : Object.values(value || {});
+          saveLocalScores(difficultyId, scores);
+          return sortScores(scores);
+        } catch {
+          leaderboardDb = null;
+        }
+      }
       const leaderboards = loadLeaderboards();
-      const scores = sortScores(leaderboards[difficultyId] || []);
+      return sortScores(leaderboards[difficultyId] || []);
+    }
+
+    async function writeScoresForDifficulty(difficultyId, scores) {
+      const sorted = sortScores(scores);
+      saveLocalScores(difficultyId, sorted);
+      if (!leaderboardDb) return;
+      try {
+        await leaderboardDb.ref(`leaderboards/${difficultyId}`).set(sorted);
+      } catch {
+        leaderboardDb = null;
+      }
+    }
+
+    async function renderLeaderboard(difficultyId = world.difficultyId) {
       ui.leaderboardTitle.textContent = `${difficultyName(difficultyId)} Leaderboard`;
+      ui.leaderboardList.innerHTML = "";
+      const loading = document.createElement("li");
+      loading.textContent = "Loading scores...";
+      ui.leaderboardList.appendChild(loading);
+
+      const scores = await loadScoresForDifficulty(difficultyId);
       ui.leaderboardList.innerHTML = "";
 
       if (!scores.length) {
@@ -1086,14 +1147,12 @@
       }
     }
 
-    function savePendingScore(name) {
+    async function savePendingScore(name) {
       if (!pendingScore) return;
       const cleanName = (name || "Frog").trim().slice(0, 20) || "Frog";
-      const leaderboards = loadLeaderboards();
-      const scores = leaderboards[pendingScore.difficultyId] || [];
+      const scores = await loadScoresForDifficulty(pendingScore.difficultyId);
       scores.push({ ...pendingScore, name: cleanName, time: Date.now() });
-      leaderboards[pendingScore.difficultyId] = sortScores(scores);
-      saveLeaderboards(leaderboards);
+      await writeScoresForDifficulty(pendingScore.difficultyId, scores);
       pendingScore = null;
       ui.scoreEntry.classList.remove("show");
       renderLeaderboard(world.difficultyId);
@@ -4892,7 +4951,7 @@
       }
     }
 
-    function endRun() {
+    async function endRun() {
       world.ended = true;
       world.paused = true;
       ui.scoreEntry.classList.remove("show");
@@ -4907,18 +4966,16 @@
         level: player.level,
         kills: player.kills,
       };
-      const currentScores = loadLeaderboards()[world.difficultyId] || [];
+      renderLeaderboard(world.difficultyId);
+      ui.gameOver.classList.add("show");
+      ui.restart.focus();
+
+      const currentScores = await loadScoresForDifficulty(world.difficultyId);
       if (scoreQualifies(score, currentScores)) {
         pendingScore = score;
         ui.scoreName.value = "";
         ui.scoreEntry.classList.add("show");
-      }
-      renderLeaderboard(world.difficultyId);
-      ui.gameOver.classList.add("show");
-      if (pendingScore) {
         ui.scoreName.focus();
-      } else {
-        ui.restart.focus();
       }
     }
 
