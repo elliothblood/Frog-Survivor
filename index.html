@@ -232,20 +232,67 @@
       gap: 8px;
     }
 
-    .difficulty-mode .upgrade {
+    .difficulty-card {
+      position: relative;
       min-height: 64px;
-      padding: 8px 10px;
-      text-align: center;
+      border: 1px solid rgba(244, 242, 235, 0.18);
+      border-radius: 8px;
+      background: #202b27;
+      transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
     }
 
-    .difficulty-mode .upgrade strong {
+    .difficulty-card:hover,
+    .difficulty-card:focus-within {
+      transform: translateY(-3px);
+      border-color: #e9ce5d;
+      background: #263831;
+    }
+
+    .difficulty-start {
+      width: 100%;
+      min-height: 64px;
+      padding: 8px 32px 8px 10px;
+      border: 0;
+      background: transparent;
+      color: #f4f2eb;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .difficulty-start strong {
+      display: block;
       margin-bottom: 2px;
       font-size: 18px;
     }
 
-    .difficulty-mode .upgrade span {
+    .difficulty-start span {
+      display: block;
+      color: #d3ddcf;
       font-size: 11px;
       line-height: 1.2;
+    }
+
+    .leaderboard-dot {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(244, 242, 235, 0.28);
+      border-radius: 50%;
+      background: rgba(233, 206, 93, 0.18);
+      color: #f8faef;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .leaderboard-dot:hover,
+    .leaderboard-dot:focus-visible {
+      outline: 0;
+      border-color: #e9ce5d;
+      background: #e9ce5d;
+      color: #16211d;
     }
 
     .leaderboard {
@@ -370,6 +417,11 @@
         padding: 7px 6px;
       }
 
+      .difficulty-card,
+      .difficulty-start {
+        min-height: 58px;
+      }
+
       .score-entry {
         grid-template-columns: 1fr;
       }
@@ -436,6 +488,10 @@
       <h1 id="upgradeTitle">Choose an upgrade</h1>
       <p id="upgradeSubtitle">The world pauses while you sharpen the build.</p>
       <div class="upgrade-grid" id="upgradeGrid"></div>
+      <div class="leaderboard choice-leaderboard" id="choiceLeaderboard" hidden>
+        <h2 id="choiceLeaderboardTitle">Leaderboard</h2>
+        <ol id="choiceLeaderboardList"></ol>
+      </div>
     </div>
   </div>
 
@@ -560,6 +616,9 @@
       upgradeTitle: document.querySelector("#upgradeTitle"),
       upgradeSubtitle: document.querySelector("#upgradeSubtitle"),
       upgradeGrid: document.querySelector("#upgradeGrid"),
+      choiceLeaderboard: document.querySelector("#choiceLeaderboard"),
+      choiceLeaderboardTitle: document.querySelector("#choiceLeaderboardTitle"),
+      choiceLeaderboardList: document.querySelector("#choiceLeaderboardList"),
       touchStick: document.querySelector("#touchStick"),
       gameOver: document.querySelector("#gameOver"),
       runSummary: document.querySelector("#runSummary"),
@@ -1123,27 +1182,31 @@
       }
     }
 
-    async function renderLeaderboard(difficultyId = world.difficultyId) {
-      ui.leaderboardTitle.textContent = `${difficultyName(difficultyId)} Leaderboard`;
-      ui.leaderboardList.innerHTML = "";
+    async function renderLeaderboard(
+      difficultyId = world.difficultyId,
+      titleElement = ui.leaderboardTitle,
+      listElement = ui.leaderboardList,
+    ) {
+      titleElement.textContent = `${difficultyName(difficultyId)} Leaderboard`;
+      listElement.innerHTML = "";
       const loading = document.createElement("li");
       loading.textContent = "Loading scores...";
-      ui.leaderboardList.appendChild(loading);
+      listElement.appendChild(loading);
 
       const scores = await loadScoresForDifficulty(difficultyId);
-      ui.leaderboardList.innerHTML = "";
+      listElement.innerHTML = "";
 
       if (!scores.length) {
         const empty = document.createElement("li");
         empty.textContent = "No scores yet";
-        ui.leaderboardList.appendChild(empty);
+        listElement.appendChild(empty);
         return;
       }
 
       for (const score of scores) {
         const item = document.createElement("li");
         item.textContent = `${score.name} - Level ${score.level}, ${score.kills} kills`;
-        ui.leaderboardList.appendChild(item);
+        listElement.appendChild(item);
       }
     }
 
@@ -3994,6 +4057,7 @@
       world.paused = true;
       ui.levelUp.classList.add("show");
       ui.choicePanel.classList.remove("difficulty-mode");
+      ui.choiceLeaderboard.hidden = true;
       ui.upgradeGrid.innerHTML = "";
       const choosingStarter = ownedWeaponCount() === 0;
       ui.upgradeTitle.textContent = choosingStarter ? "Choose a starting weapon" : "Choose an upgrade";
@@ -4995,24 +5059,40 @@
       ui.levelUp.classList.add("show");
       ui.choicePanel.classList.add("difficulty-mode");
       ui.upgradeGrid.innerHTML = "";
+      ui.choiceLeaderboard.hidden = true;
       ui.upgradeTitle.textContent = "Choose difficulty";
       ui.upgradeSubtitle.textContent = "Each difficulty has its own top-10 leaderboard.";
 
       for (const difficulty of difficultyOptions) {
-        const button = document.createElement("button");
-        button.className = "upgrade";
-        button.type = "button";
-        button.innerHTML = `<strong>${difficulty.name}</strong><span>Top 10 scores</span>`;
-        button.addEventListener("click", () => {
+        const card = document.createElement("div");
+        card.className = "difficulty-card";
+
+        const startButton = document.createElement("button");
+        startButton.className = "difficulty-start";
+        startButton.type = "button";
+        startButton.innerHTML = `<strong>${difficulty.name}</strong><span>Start run</span>`;
+        startButton.addEventListener("click", () => {
           world.difficulty = difficulty.value;
           world.difficultyId = difficulty.id;
           ui.levelUp.classList.remove("show");
           beginRun();
         });
-        ui.upgradeGrid.appendChild(button);
+
+        const leaderboardButton = document.createElement("button");
+        leaderboardButton.className = "leaderboard-dot";
+        leaderboardButton.type = "button";
+        leaderboardButton.title = `${difficulty.name} leaderboard`;
+        leaderboardButton.textContent = "★";
+        leaderboardButton.addEventListener("click", () => {
+          ui.choiceLeaderboard.hidden = false;
+          renderLeaderboard(difficulty.id, ui.choiceLeaderboardTitle, ui.choiceLeaderboardList);
+        });
+
+        card.append(startButton, leaderboardButton);
+        ui.upgradeGrid.appendChild(card);
       }
 
-      const normal = ui.upgradeGrid.querySelector("button:nth-child(3)");
+      const normal = ui.upgradeGrid.querySelector(".difficulty-card:nth-child(3) .difficulty-start");
       if (normal) normal.focus();
     }
 
