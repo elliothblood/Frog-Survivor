@@ -228,7 +228,7 @@
     }
 
     .difficulty-mode .upgrade-grid {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
 
@@ -246,6 +246,65 @@
     .difficulty-mode .upgrade span {
       font-size: 11px;
       line-height: 1.2;
+    }
+
+    .leaderboard {
+      margin: 14px 0;
+      padding: 12px;
+      border: 1px solid rgba(244, 242, 235, 0.16);
+      border-radius: 8px;
+      background: rgba(10, 13, 14, 0.34);
+    }
+
+    .leaderboard h2 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .leaderboard ol {
+      margin: 0;
+      padding-left: 24px;
+      color: #d3ddcf;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .leaderboard li {
+      padding: 1px 0;
+    }
+
+    .score-entry {
+      display: none;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .score-entry.show {
+      display: grid;
+    }
+
+    .score-entry input,
+    .score-entry button {
+      min-height: 42px;
+      border: 1px solid rgba(244, 242, 235, 0.2);
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .score-entry input {
+      min-width: 0;
+      padding: 0 12px;
+      background: #111917;
+      color: #f4f2eb;
+    }
+
+    .score-entry button {
+      padding: 0 14px;
+      background: #e9ce5d;
+      color: #16211d;
+      font-weight: 900;
+      cursor: pointer;
     }
 
     .touch-stick {
@@ -303,12 +362,16 @@
       }
 
       .difficulty-mode .upgrade-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .difficulty-mode .upgrade {
         min-height: 58px;
         padding: 7px 6px;
+      }
+
+      .score-entry {
+        grid-template-columns: 1fr;
       }
 
       .touch-stick {
@@ -380,10 +443,18 @@
     <div class="upgrade-panel">
       <h1>Run ended</h1>
       <p id="runSummary">You were overrun.</p>
+      <form class="score-entry" id="scoreEntry">
+        <input id="scoreName" maxlength="20" autocomplete="off" placeholder="Name for leaderboard">
+        <button id="saveScore" type="submit">Save Score</button>
+      </form>
+      <div class="leaderboard">
+        <h2 id="leaderboardTitle">Leaderboard</h2>
+        <ol id="leaderboardList"></ol>
+      </div>
       <div class="upgrade-grid">
         <button class="upgrade" id="restart" type="button">
           <strong>Try again</strong>
-          <span>Start a fresh run with the basic crossbow.</span>
+          <span>Start a fresh run.</span>
         </button>
       </div>
     </div>
@@ -469,6 +540,10 @@
       touchStick: document.querySelector("#touchStick"),
       gameOver: document.querySelector("#gameOver"),
       runSummary: document.querySelector("#runSummary"),
+      scoreEntry: document.querySelector("#scoreEntry"),
+      scoreName: document.querySelector("#scoreName"),
+      leaderboardTitle: document.querySelector("#leaderboardTitle"),
+      leaderboardList: document.querySelector("#leaderboardList"),
       restart: document.querySelector("#restart"),
     };
 
@@ -487,6 +562,7 @@
       cameraY: 0,
       pendingUpgrades: 0,
       difficulty: 5,
+      difficultyId: "normal",
     };
 
     const player = {
@@ -837,6 +913,18 @@
       dy: 0,
     };
 
+    const difficultyOptions = [
+      { id: "gentle", name: "Gentle Pond", value: 1 },
+      { id: "easy", name: "Easy Run", value: 3 },
+      { id: "normal", name: "Normal Swamp", value: 5 },
+      { id: "hard", name: "Hard Run", value: 9 },
+      { id: "brutal", name: "Brutal Run", value: 14 },
+      { id: "nightmare", name: "Nightmare Bog", value: 20 },
+    ];
+
+    const leaderboardKey = "frog-survivor-leaderboards-v1";
+    let pendingScore = null;
+
     const weaponById = {
       crossbow,
       wand,
@@ -944,6 +1032,72 @@
     function boostMaxHealth(amount) {
       player.maxHp += amount;
       player.hp = Math.min(player.maxHp, player.hp + amount);
+    }
+
+    function difficultyName(id = world.difficultyId) {
+      const option = difficultyOptions.find((difficulty) => difficulty.id === id);
+      return option ? option.name : "Normal Swamp";
+    }
+
+    function loadLeaderboards() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(leaderboardKey) || "{}");
+        return saved && typeof saved === "object" ? saved : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveLeaderboards(leaderboards) {
+      localStorage.setItem(leaderboardKey, JSON.stringify(leaderboards));
+    }
+
+    function sortScores(scores) {
+      return scores
+        .slice()
+        .sort((a, b) => (b.level - a.level) || (b.kills - a.kills) || (a.time - b.time))
+        .slice(0, 10);
+    }
+
+    function scoreQualifies(score, scores) {
+      const sorted = sortScores(scores);
+      if (sorted.length < 10) return true;
+      const last = sorted[sorted.length - 1];
+      return score.level > last.level || (score.level === last.level && score.kills > last.kills);
+    }
+
+    function renderLeaderboard(difficultyId = world.difficultyId) {
+      const leaderboards = loadLeaderboards();
+      const scores = sortScores(leaderboards[difficultyId] || []);
+      ui.leaderboardTitle.textContent = `${difficultyName(difficultyId)} Leaderboard`;
+      ui.leaderboardList.innerHTML = "";
+
+      if (!scores.length) {
+        const empty = document.createElement("li");
+        empty.textContent = "No scores yet";
+        ui.leaderboardList.appendChild(empty);
+        return;
+      }
+
+      for (const score of scores) {
+        const item = document.createElement("li");
+        item.textContent = `${score.name} - Level ${score.level}, ${score.kills} kills`;
+        ui.leaderboardList.appendChild(item);
+      }
+    }
+
+    function savePendingScore(name) {
+      if (!pendingScore) return;
+      const cleanName = (name || "Frog").trim().slice(0, 20) || "Frog";
+      const leaderboards = loadLeaderboards();
+      const scores = leaderboards[pendingScore.difficultyId] || [];
+      scores.push({ ...pendingScore, name: cleanName, time: Date.now() });
+      leaderboards[pendingScore.difficultyId] = sortScores(scores);
+      saveLeaderboards(leaderboards);
+      pendingScore = null;
+      ui.scoreEntry.classList.remove("show");
+      renderLeaderboard(world.difficultyId);
+      ui.restart.focus();
     }
 
     const upgradePool = [
@@ -4741,13 +4895,31 @@
     function endRun() {
       world.ended = true;
       world.paused = true;
+      ui.scoreEntry.classList.remove("show");
+      pendingScore = null;
       const boostSummary = supportBoostIds
         .filter((id) => supportBoosts[id].unlocked)
         .map((id) => `${id} ${supportBoosts[id].level}`)
         .join(" - ");
-      ui.runSummary.textContent = `Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      ui.runSummary.textContent = `${difficultyName()} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      const score = {
+        difficultyId: world.difficultyId,
+        level: player.level,
+        kills: player.kills,
+      };
+      const currentScores = loadLeaderboards()[world.difficultyId] || [];
+      if (scoreQualifies(score, currentScores)) {
+        pendingScore = score;
+        ui.scoreName.value = "";
+        ui.scoreEntry.classList.add("show");
+      }
+      renderLeaderboard(world.difficultyId);
       ui.gameOver.classList.add("show");
-      ui.restart.focus();
+      if (pendingScore) {
+        ui.scoreName.focus();
+      } else {
+        ui.restart.focus();
+      }
     }
 
     function beginRun() {
@@ -4767,33 +4939,23 @@
       ui.choicePanel.classList.add("difficulty-mode");
       ui.upgradeGrid.innerHTML = "";
       ui.upgradeTitle.textContent = "Choose difficulty";
-      ui.upgradeSubtitle.textContent = "Difficulty 5 is normal. Higher numbers make enemies and bosses nastier.";
+      ui.upgradeSubtitle.textContent = "Each difficulty has its own top-10 leaderboard.";
 
-      for (let difficulty = 1; difficulty <= 20; difficulty += 1) {
+      for (const difficulty of difficultyOptions) {
         const button = document.createElement("button");
         button.className = "upgrade";
         button.type = "button";
-        const label = difficulty === 1
-          ? "Gentle Pond"
-          : difficulty === 5
-            ? "Normal Swamp"
-            : difficulty === 20
-              ? "Nightmare Bog"
-              : difficulty < 5
-                ? "Easy Run"
-                : difficulty < 12
-                  ? "Hard Run"
-                  : "Brutal Run";
-        button.innerHTML = `<strong>${difficulty}</strong><span>${label}</span>`;
+        button.innerHTML = `<strong>${difficulty.name}</strong><span>Top 10 scores</span>`;
         button.addEventListener("click", () => {
-          world.difficulty = difficulty;
+          world.difficulty = difficulty.value;
+          world.difficultyId = difficulty.id;
           ui.levelUp.classList.remove("show");
           beginRun();
         });
         ui.upgradeGrid.appendChild(button);
       }
 
-      const normal = ui.upgradeGrid.querySelector("button:nth-child(5)");
+      const normal = ui.upgradeGrid.querySelector("button:nth-child(3)");
       if (normal) normal.focus();
     }
 
@@ -4808,6 +4970,8 @@
       world.heartTimer = 7;
       world.pendingUpgrades = 0;
       world.difficulty = 5;
+      world.difficultyId = "normal";
+      pendingScore = null;
 
       player.x = world.width / 2;
       player.y = world.height / 2;
@@ -5085,6 +5249,7 @@
       nextEnemyId = 1;
       ui.gameOver.classList.remove("show");
       ui.levelUp.classList.remove("show");
+      ui.scoreEntry.classList.remove("show");
       updateUi();
       openDifficultyChoice();
     }
@@ -6678,6 +6843,7 @@
 
     window.addEventListener("resize", resize);
     window.addEventListener("keydown", (event) => {
+      if (event.target instanceof HTMLInputElement) return;
       keys.add(event.code);
       if (event.code === "Space" && ui.levelUp.classList.contains("show")) {
         const first = ui.upgradeGrid.querySelector("button");
@@ -6711,6 +6877,10 @@
     canvas.addEventListener("pointerup", endPointer);
     canvas.addEventListener("pointercancel", endPointer);
     ui.restart.addEventListener("click", restartRun);
+    ui.scoreEntry.addEventListener("submit", (event) => {
+      event.preventDefault();
+      savePendingScore(ui.scoreName.value);
+    });
 
     function endPointer(event) {
       if (pointer.id !== event.pointerId) return;
