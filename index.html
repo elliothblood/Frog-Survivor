@@ -2873,6 +2873,21 @@
       return stats;
     }
 
+    function regularEnemyExp(type, eraTier, cycle, minutes) {
+      const baseByType = {
+        fly: 2,
+        ladybug: 3,
+        bug: 4,
+        cricket: 5,
+        rhino: 6,
+        spider: 7,
+      };
+      if (type === "dragonfly") {
+        return 3 + cycle * 2 + Math.floor(minutes / 3);
+      }
+      return (baseByType[type] || 2) + eraTier;
+    }
+
     function spawnEnemy() {
       const pos = randomEdgePosition();
       const minutes = world.time / 60;
@@ -2960,6 +2975,7 @@
         damage: stats.damage,
         color: stats.color,
         type,
+        expValue: regularEnemyExp(type, eraTier, cycle, minutes),
         pulse: Math.random() * Math.PI * 2,
         dead: false,
       };
@@ -3109,6 +3125,7 @@
           damage: (8 + Math.floor(world.time / 180) * 2) * tuning.damage,
           color: "#2c211c",
           type: "ant",
+          expValue: 3 + Math.floor(world.time / 160),
           pulse: Math.random() * Math.PI * 2,
           dead: false,
         };
@@ -3134,6 +3151,7 @@
         damage: (9 + Math.floor(world.time / 180) * 2) * tuning.damage,
         color: "#d9b232",
         type: "bee",
+        expValue: 4 + Math.floor(world.time / 180),
         pulse: Math.random() * Math.PI * 2,
         dead: false,
       });
@@ -4039,7 +4057,7 @@
         bird: 55,
         worm: 44,
       };
-      const expValue = expValues[enemy.type] || 2;
+      const expValue = enemy.expValue || expValues[enemy.type] || 2;
       if (enemy.isBoss) {
         const gemCount = enemy.type === "bird" ? 26 : enemy.type === "worm" ? 22 : enemy.type === "queenBee" ? 20 : 16;
         const gemValue = enemy.type === "bird" ? 8 : enemy.type === "worm" ? 7 : enemy.type === "queenBee" ? 7 : 6;
