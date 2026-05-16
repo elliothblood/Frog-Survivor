@@ -287,8 +287,26 @@
       cursor: pointer;
     }
 
+    .mastery-dot {
+      position: absolute;
+      top: 6px;
+      right: 34px;
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(244, 242, 235, 0.28);
+      border-radius: 50%;
+      background: rgba(94, 198, 255, 0.16);
+      color: #f8faef;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
     .leaderboard-dot:hover,
-    .leaderboard-dot:focus-visible {
+    .leaderboard-dot:focus-visible,
+    .mastery-dot:hover,
+    .mastery-dot:focus-visible,
+    .mastery-dot.active {
       outline: 0;
       border-color: #e9ce5d;
       background: #e9ce5d;
@@ -651,6 +669,7 @@
       pendingUpgrades: 0,
       difficulty: 5,
       difficultyId: "normal",
+      masteryMode: false,
     };
 
     const player = {
@@ -1016,6 +1035,7 @@
     ];
 
     const leaderboardKey = "frog-survivor-leaderboards-v1";
+    const masterySelections = {};
     let pendingScore = null;
 
     const weaponById = {
@@ -1055,6 +1075,14 @@
     function isNonBoostDamageWeapon(id) {
       const weapon = weaponById[id];
       return Boolean(weapon && weapon.unlocked && id !== "book" && id !== "potion");
+    }
+
+    function weaponSlotLimit() {
+      return world.masteryMode ? 1 : 5;
+    }
+
+    function boostSlotLimit() {
+      return world.masteryMode ? 1 : 5;
     }
 
     function applyDamageMultiplier(weapon, multiplier) {
@@ -1224,7 +1252,8 @@
 
       for (const score of scores) {
         const item = document.createElement("li");
-        item.textContent = `${score.name} - Level ${score.level}, ${score.kills} kills`;
+        const mode = score.mastery ? " - Mastery" : "";
+        item.textContent = `${score.name} - Level ${score.level}, ${score.kills} kills${mode}`;
         listElement.appendChild(item);
       }
     }
@@ -4199,8 +4228,8 @@
         ? "Pick the first weapon for this run."
         : "The world pauses while you sharpen the build.";
 
-      const canAddWeapon = ownedWeaponCount() < 5;
-      const canAddBoost = ownedBoostCount() < 5;
+      const canAddWeapon = ownedWeaponCount() < weaponSlotLimit();
+      const canAddBoost = ownedBoostCount() < boostSlotLimit();
       const availableUpgrades = upgradePool
         .filter((upgrade) => (!upgrade.unlock || (upgrade.isBoost ? canAddBoost : canAddWeapon))
           && (!choosingStarter || (upgrade.unlock && upgrade.starter !== false && !upgrade.isBoost))
@@ -4209,7 +4238,7 @@
           && (!upgrade.available || upgrade.available()));
       const choices = availableUpgrades
         .sort(() => Math.random() - 0.5)
-        .slice(0, 3);
+        .slice(0, choosingStarter && world.masteryMode ? 5 : 3);
 
       for (const upgrade of choices) {
         const button = document.createElement("button");
@@ -5168,11 +5197,12 @@
         .filter((id) => supportBoosts[id].unlocked)
         .map((id) => `${id} ${supportBoosts[id].level}`)
         .join(" - ");
-      ui.runSummary.textContent = `${difficultyName()} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
       const score = {
         difficultyId: world.difficultyId,
         level: player.level,
         kills: player.kills,
+        mastery: world.masteryMode,
       };
       renderLeaderboard(world.difficultyId);
       ui.gameOver.classList.add("show");
@@ -5205,21 +5235,34 @@
       ui.upgradeGrid.innerHTML = "";
       ui.choiceLeaderboard.hidden = true;
       ui.upgradeTitle.textContent = "Choose difficulty";
-      ui.upgradeSubtitle.textContent = "Each difficulty has its own top-10 leaderboard.";
+      ui.upgradeSubtitle.textContent = "M toggles Mastery: one weapon, one boost, five starter choices.";
 
       for (const difficulty of difficultyOptions) {
         const card = document.createElement("div");
         card.className = "difficulty-card";
+        if (masterySelections[difficulty.id]) card.classList.add("mastery-selected");
 
         const startButton = document.createElement("button");
         startButton.className = "difficulty-start";
         startButton.type = "button";
-        startButton.innerHTML = `<strong>${difficulty.name}</strong><span>Start run</span>`;
+        startButton.innerHTML = `<strong>${difficulty.name}</strong><span>${masterySelections[difficulty.id] ? "Start mastery" : "Start run"}</span>`;
         startButton.addEventListener("click", () => {
           world.difficulty = difficulty.value;
           world.difficultyId = difficulty.id;
+          world.masteryMode = Boolean(masterySelections[difficulty.id]);
           ui.levelUp.classList.remove("show");
           beginRun();
+        });
+
+        const masteryButton = document.createElement("button");
+        masteryButton.className = `mastery-dot${masterySelections[difficulty.id] ? " active" : ""}`;
+        masteryButton.type = "button";
+        masteryButton.title = `${difficulty.name} mastery mode`;
+        masteryButton.textContent = "M";
+        masteryButton.addEventListener("click", () => {
+          masterySelections[difficulty.id] = !masterySelections[difficulty.id];
+          masteryButton.classList.toggle("active", masterySelections[difficulty.id]);
+          startButton.querySelector("span").textContent = masterySelections[difficulty.id] ? "Start mastery" : "Start run";
         });
 
         const leaderboardButton = document.createElement("button");
@@ -5232,7 +5275,7 @@
           renderLeaderboard(difficulty.id, ui.choiceLeaderboardTitle, ui.choiceLeaderboardList);
         });
 
-        card.append(startButton, leaderboardButton);
+        card.append(startButton, masteryButton, leaderboardButton);
         ui.upgradeGrid.appendChild(card);
       }
 
@@ -5252,6 +5295,7 @@
       world.pendingUpgrades = 0;
       world.difficulty = 5;
       world.difficultyId = "normal";
+      world.masteryMode = false;
       pendingScore = null;
 
       player.x = world.width / 2;
