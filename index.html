@@ -471,6 +471,8 @@
         <div class="pill weapon" id="bootsPill" hidden><small>Boots</small><span id="boots">-</span></div>
         <div class="pill weapon" id="heartRootPill" hidden><small>Root</small><span id="heartRoot">-</span></div>
         <div class="pill weapon" id="clockPill" hidden><small>Clock</small><span id="clock">-</span></div>
+        <div class="pill weapon" id="magnetPill" hidden><small>Magnet</small><span id="magnet">-</span></div>
+        <div class="pill weapon" id="criticalPill" hidden><small>Crit</small><span id="critical">-</span></div>
       </div>
       <div class="help">Move with WASD or arrow keys. Weapons attack nearby enemies automatically.</div>
     </div>
@@ -580,6 +582,8 @@
       boots: document.querySelector("#boots"),
       heartRoot: document.querySelector("#heartRoot"),
       clock: document.querySelector("#clock"),
+      magnet: document.querySelector("#magnet"),
+      critical: document.querySelector("#critical"),
       wandPill: document.querySelector("#wandPill"),
       swordPill: document.querySelector("#swordPill"),
       beltPill: document.querySelector("#beltPill"),
@@ -609,6 +613,8 @@
       bootsPill: document.querySelector("#bootsPill"),
       heartRootPill: document.querySelector("#heartRootPill"),
       clockPill: document.querySelector("#clockPill"),
+      magnetPill: document.querySelector("#magnetPill"),
+      criticalPill: document.querySelector("#criticalPill"),
       xpFill: document.querySelector("#xpFill"),
       xpLabel: document.querySelector("#xpLabel"),
       levelUp: document.querySelector("#levelUp"),
@@ -943,6 +949,8 @@
       boots: { unlocked: false, level: 0 },
       heartRoot: { unlocked: false, level: 0 },
       clock: { unlocked: false, level: 0 },
+      magnet: { unlocked: false, level: 0 },
+      critical: { unlocked: false, level: 0 },
     };
 
     const boostStats = {
@@ -950,6 +958,8 @@
       size: 1,
       duration: 1,
       fireRate: 1,
+      magnetRange: 1,
+      critChance: 0,
     };
 
     const enemies = [];
@@ -1114,6 +1124,14 @@
     function boostMaxHealth(amount) {
       player.maxHp += amount;
       player.hp = Math.min(player.maxHp, player.hp + amount);
+    }
+
+    function boostMagnet(multiplier) {
+      boostStats.magnetRange *= multiplier;
+    }
+
+    function boostCriticalChance(amount) {
+      boostStats.critChance = Math.min(0.45, boostStats.critChance + amount);
     }
 
     function difficultyName(id = world.difficultyId) {
@@ -2584,6 +2602,64 @@
         apply: () => boostFireRate(0.88),
       },
       {
+        name: "Magnet",
+        text: "A boost weapon. Draw gems and chests from 45% farther away.",
+        weapon: "magnet",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.magnet.unlocked,
+        apply: () => {
+          unlockBoost("magnet");
+          boostMagnet(1.45);
+        },
+      },
+      {
+        name: "Lodestone",
+        text: "Magnet pickup pull reaches 25% farther.",
+        weapon: "magnet",
+        isBoost: true,
+        available: () => supportBoosts.magnet.unlocked,
+        apply: () => boostMagnet(1.25),
+      },
+      {
+        name: "Wide Pull",
+        text: "Magnet pickup pull reaches 35% farther.",
+        weapon: "magnet",
+        isBoost: true,
+        available: () => supportBoosts.magnet.unlocked,
+        apply: () => boostMagnet(1.35),
+      },
+      {
+        name: "Critical Staff",
+        text: "A boost weapon. Attacks gain a 6% chance to deal double damage.",
+        weapon: "critical",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.critical.unlocked,
+        apply: () => {
+          unlockBoost("critical");
+          boostCriticalChance(0.06);
+        },
+      },
+      {
+        name: "Lucky Spark",
+        text: "Critical Staff gives +4% critical hit chance.",
+        weapon: "critical",
+        isBoost: true,
+        available: () => supportBoosts.critical.unlocked,
+        apply: () => boostCriticalChance(0.04),
+      },
+      {
+        name: "Sharp Fate",
+        text: "Critical Staff gives +7% critical hit chance.",
+        weapon: "critical",
+        isBoost: true,
+        available: () => supportBoosts.critical.unlocked,
+        apply: () => boostCriticalChance(0.07),
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -2787,6 +2863,8 @@
       ui.bootsPill.hidden = !supportBoosts.boots.unlocked;
       ui.heartRootPill.hidden = !supportBoosts.heartRoot.unlocked;
       ui.clockPill.hidden = !supportBoosts.clock.unlocked;
+      ui.magnetPill.hidden = !supportBoosts.magnet.unlocked;
+      ui.criticalPill.hidden = !supportBoosts.critical.unlocked;
       ui.wand.textContent = wand.unlocked ? wand.level : "-";
       ui.sword.textContent = sword.unlocked ? sword.level : "-";
       ui.belt.textContent = asteroidBelt.unlocked ? asteroidBelt.level : "-";
@@ -2816,6 +2894,8 @@
       ui.boots.textContent = supportBoosts.boots.unlocked ? supportBoosts.boots.level : "-";
       ui.heartRoot.textContent = supportBoosts.heartRoot.unlocked ? supportBoosts.heartRoot.level : "-";
       ui.clock.textContent = supportBoosts.clock.unlocked ? supportBoosts.clock.level : "-";
+      ui.magnet.textContent = supportBoosts.magnet.unlocked ? supportBoosts.magnet.level : "-";
+      ui.critical.textContent = supportBoosts.critical.unlocked ? supportBoosts.critical.level : "-";
       ui.xpFill.style.width = `${(player.xp / player.xpNeeded) * 100}%`;
       ui.xpLabel.textContent = `EXP ${player.xp} / ${player.xpNeeded}`;
     }
@@ -2863,6 +2943,7 @@
     function treasureChestChance() {
       const above = Math.max(0, world.difficulty - 5);
       const below = Math.max(0, 5 - world.difficulty);
+      // Fixed per EXP-drop roll: gem value and size never affect chest odds.
       return clamp(0.01 + below * 0.001 - above * 0.00035, 0.003, 0.014);
     }
 
@@ -3550,9 +3631,14 @@
 
     function damageEnemy(enemy, amount, options = {}) {
       const allowPotionEffects = options.potionEffects !== false;
-      const boosted = allowPotionEffects && potionBuff.damageTime > 0
+      let boosted = allowPotionEffects && potionBuff.damageTime > 0
         ? amount * (1 + potionBuff.damageBoost)
         : amount;
+      const canCrit = options.critical !== false && boostStats.critChance > 0;
+      if (canCrit && Math.random() < boostStats.critChance) {
+        boosted *= 2;
+        floatText.push({ x: enemy.x, y: enemy.y - enemy.radius - 14, text: "CRIT", life: 0.38, danger: true });
+      }
       enemy.hp -= boosted;
       if (allowPotionEffects && potionBuff.fireTime > 0 && potionBuff.fireDamage > 0) {
         applyBurn(enemy, potionBuff.fireDamage);
@@ -5002,9 +5088,11 @@
         const gem = gems[i];
         gem.bob += dt * 5;
         const d = distance(player, gem);
-        if (d < 150) {
+        const magnetRange = 150 * boostStats.magnetRange;
+        const snapRange = 55 * Math.sqrt(boostStats.magnetRange);
+        if (d < magnetRange) {
           const angle = Math.atan2(player.y - gem.y, player.x - gem.x);
-          const pull = d < 55 ? 690 : 310;
+          const pull = d < snapRange ? 690 * Math.sqrt(boostStats.magnetRange) : 310 * Math.sqrt(boostStats.magnetRange);
           gem.x += Math.cos(angle) * pull * dt;
           gem.y += Math.sin(angle) * pull * dt;
         }
@@ -5384,6 +5472,8 @@
       boostStats.size = 1;
       boostStats.duration = 1;
       boostStats.fireRate = 1;
+      boostStats.magnetRange = 1;
+      boostStats.critChance = 0;
       for (const id of supportBoostIds) {
         supportBoosts[id].unlocked = false;
         supportBoosts[id].level = 0;
