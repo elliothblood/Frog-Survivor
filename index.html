@@ -1011,6 +1011,7 @@
       { id: "normal", name: "Normal Swamp", value: 5 },
       { id: "hard", name: "Hard Run", value: 9 },
       { id: "brutal", name: "Brutal Run", value: 14 },
+      { id: "hardcore", name: "Hardcore", value: 16, hardcore: true },
       { id: "nightmare", name: "Nightmare Bog", value: 20 },
     ];
 
@@ -2927,7 +2928,7 @@
       const d = clamp(world.difficulty, 1, 20);
       const below = Math.max(0, 5 - d);
       const above = Math.max(0, d - 5);
-      return {
+      const tuning = {
         health: Math.max(0.5, 1 - below * 0.11 + above * 0.11),
         damage: Math.max(0.55, 1 - below * 0.09 + above * 0.08),
         speed: Math.max(0.72, 1 - below * 0.045 + above * 0.035),
@@ -2937,7 +2938,26 @@
         antInterval: Math.max(0.5, 1 + below * 0.18 - above * 0.03),
         extraSpawnChance: Math.min(0.95, above * 0.055),
         thirdSpawnChance: Math.max(0, (above - 8) * 0.045),
+        playerDamage: 1,
+        mouseShotInterval: 1,
       };
+      if (world.difficultyId === "hardcore") {
+        tuning.health = 2.45;
+        tuning.speed = 1.34;
+        tuning.spawnInterval = 0.54;
+        tuning.softCap = 1.55;
+        tuning.bossInterval = 0.52;
+        tuning.antInterval = 0.58;
+        tuning.extraSpawnChance = 0.58;
+        tuning.thirdSpawnChance = 0.22;
+        tuning.playerDamage = 3;
+        tuning.mouseShotInterval = 2;
+      }
+      return tuning;
+    }
+
+    function playerDamageMultiplier() {
+      return difficultyTuning().playerDamage;
     }
 
     function treasureChestChance() {
@@ -4851,9 +4871,10 @@
 
         const hitRange = player.radius + shot.radius;
         if (distanceSq(player, shot) < hitRange * hitRange) {
-          player.hp -= shot.damage;
+          const damage = shot.damage * playerDamageMultiplier();
+          player.hp -= damage;
           player.hurtTimer = Math.max(player.hurtTimer, 0.35);
-          floatText.push({ x: player.x, y: player.y - 24, text: `-${shot.damage}`, life: 0.55, danger: true });
+          floatText.push({ x: player.x, y: player.y - 24, text: `-${Math.round(damage)}`, life: 0.55, danger: true });
           enemyProjectiles.splice(i, 1);
           if (player.hp <= 0) endRun();
           updateUi();
@@ -5053,7 +5074,7 @@
           enemy.shotTimer -= dt;
           if (enemy.shotTimer <= 0) {
             fireBossProjectile(enemy);
-            enemy.shotTimer = Math.max(0.55, 1.35 - world.time * 0.0015);
+            enemy.shotTimer = Math.max(0.55, 1.35 - world.time * 0.0015) * difficultyTuning().mouseShotInterval;
           }
         } else if (enemy.type === "queenBee") {
           enemy.spawnTimer -= dt;
@@ -5076,9 +5097,10 @@
 
         const touchRange = player.radius + enemy.radius;
         if (distanceSq(player, enemy) < touchRange * touchRange && player.hurtTimer <= 0) {
-          player.hp -= enemy.damage;
+          const damage = enemy.damage * playerDamageMultiplier();
+          player.hp -= damage;
           player.hurtTimer = 0.55;
-          floatText.push({ x: player.x, y: player.y - 24, text: `-${enemy.damage}`, life: 0.55, danger: true });
+          floatText.push({ x: player.x, y: player.y - 24, text: `-${Math.round(damage)}`, life: 0.55, danger: true });
           if (player.hp <= 0) endRun();
           updateUi();
         }
