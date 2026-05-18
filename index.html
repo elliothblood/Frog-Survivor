@@ -854,6 +854,7 @@
       damage: 24,
       size: 1,
       count: 1,
+      splashRadius: 34,
       cooldown: 1.05,
       speed: 460,
       knockback: 68,
@@ -3080,7 +3081,7 @@
         tuning.mouseShotInterval = 2;
       }
       if (world.difficultyId === "night") {
-        tuning.spotlight = 0.72;
+        tuning.spotlight = 0.82;
       }
       return tuning;
     }
@@ -3806,15 +3807,42 @@
           vx: Math.cos(angle) * rockWeapon.speed,
           vy: Math.sin(angle) * rockWeapon.speed,
           radius: 9 * rockWeapon.size,
-          damage: rockWeapon.damage,
-          knockback: rockWeapon.knockback,
-          life: 1.65,
-          spin: Math.random() * Math.PI * 2,
-        });
+        damage: rockWeapon.damage,
+        knockback: rockWeapon.knockback,
+        splashRadius: rockWeapon.splashRadius * Math.sqrt(rockWeapon.size),
+        life: 1.65,
+        spin: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  function splashRock(rock, primaryTarget) {
+    explosions.push({
+      x: rock.x,
+      y: rock.y,
+      radius: rock.splashRadius,
+      life: 0.24,
+      maxLife: 0.24,
+      color: "#b7aa8f",
+    });
+
+    const splashDamage = rock.damage * 0.32;
+    for (const enemy of nearbyEnemies(rock.x, rock.y, rock.splashRadius + 34)) {
+      if (enemy.dead || enemy === primaryTarget) continue;
+      const hitRange = rock.splashRadius + enemy.radius;
+      if (distanceSq(enemy, rock) < hitRange * hitRange) {
+        damageEnemy(enemy, splashDamage);
+        const angle = Math.atan2(enemy.y - rock.y, enemy.x - rock.x);
+        const shove = rock.knockback * 0.28;
+        enemy.x = clamp(enemy.x + Math.cos(angle) * shove, enemy.radius, world.width - enemy.radius);
+        enemy.y = clamp(enemy.y + Math.sin(angle) * shove, enemy.radius, world.height - enemy.radius);
+        floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(splashDamage), life: 0.34 });
+        if (enemy.hp <= 0) killEnemy(enemy);
       }
     }
+  }
 
-    function applyBurn(enemy, damage) {
+  function applyBurn(enemy, damage) {
       enemy.burnStacks = (enemy.burnStacks || 0) + 1;
       enemy.burnDamage = (enemy.burnDamage || 0) + damage;
       enemy.burnTime = Math.max(enemy.burnTime || 0, 3.2);
@@ -4719,6 +4747,7 @@
             enemy.y = clamp(enemy.y + Math.sin(angle) * rock.knockback, enemy.radius, world.height - enemy.radius);
             floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(rock.damage), life: 0.42 });
             if (enemy.hp <= 0) killEnemy(enemy);
+            splashRock(rock, enemy);
             hit = true;
             break;
           }
@@ -5720,6 +5749,7 @@
       rockWeapon.damage = 24;
       rockWeapon.size = 1;
       rockWeapon.count = 1;
+      rockWeapon.splashRadius = 34;
       rockWeapon.cooldown = 1.05;
       rockWeapon.speed = 460;
       rockWeapon.knockback = 68;
