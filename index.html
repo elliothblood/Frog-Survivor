@@ -473,6 +473,7 @@
         <div class="pill weapon" id="rainPill" hidden><small>Rain</small><span id="rain">-</span></div>
         <div class="pill weapon" id="bananaPill" hidden><small>Banana</small><span id="banana">-</span></div>
         <div class="pill weapon" id="shockPill" hidden><small>Shock</small><span id="shock">-</span></div>
+        <div class="pill weapon" id="rockPill" hidden><small>Rocks</small><span id="rock">-</span></div>
         <div class="pill weapon" id="fireballPill" hidden><small>Fire</small><span id="fireball">-</span></div>
         <div class="pill weapon" id="iciclePill" hidden><small>Ice</small><span id="icicle">-</span></div>
         <div class="pill weapon" id="bubblePill" hidden><small>Bubble</small><span id="bubble">-</span></div>
@@ -584,6 +585,7 @@
       rain: document.querySelector("#rain"),
       banana: document.querySelector("#banana"),
       shock: document.querySelector("#shock"),
+      rock: document.querySelector("#rock"),
       fireball: document.querySelector("#fireball"),
       icicle: document.querySelector("#icicle"),
       bubble: document.querySelector("#bubble"),
@@ -615,6 +617,7 @@
       rainPill: document.querySelector("#rainPill"),
       bananaPill: document.querySelector("#bananaPill"),
       shockPill: document.querySelector("#shockPill"),
+      rockPill: document.querySelector("#rockPill"),
       fireballPill: document.querySelector("#fireballPill"),
       iciclePill: document.querySelector("#iciclePill"),
       bubblePill: document.querySelector("#bubblePill"),
@@ -670,6 +673,7 @@
       difficulty: 5,
       difficultyId: "normal",
       masteryMode: false,
+      spotlightSize: 1,
     };
 
     const player = {
@@ -680,6 +684,9 @@
       hp: 100,
       maxHp: 100,
       hurtTimer: 0,
+      poisonTime: 0,
+      poisonDamage: 0,
+      poisonDelay: 0,
       level: 1,
       xp: 0,
       xpNeeded: 8,
@@ -841,6 +848,18 @@
       timer: 0,
     };
 
+    const rockWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 24,
+      size: 1,
+      count: 1,
+      cooldown: 1.05,
+      speed: 460,
+      knockback: 68,
+      timer: 0,
+    };
+
     const fireballWeapon = {
       unlocked: false,
       level: 0,
@@ -989,6 +1008,7 @@
     const raindrops = [];
     const bananas = [];
     const shockWaves = [];
+    const rocks = [];
     const fireballs = [];
     const icicles = [];
     const bubbles = [];
@@ -1032,6 +1052,7 @@
       { id: "brutal", name: "Brutal Run", value: 14 },
       { id: "nightmare", name: "Nightmare Bog", value: 20 },
       { id: "hardcore", name: "Hardcore", value: 16, hardcore: true },
+      { id: "night", name: "Night Time", value: 20, night: true },
     ];
 
     const leaderboardKey = "frog-survivor-leaderboards-v1";
@@ -1053,6 +1074,7 @@
       rain: rainWeapon,
       banana: bananaWeapon,
       shock: shockWaveWeapon,
+      rock: rockWeapon,
       fireball: fireballWeapon,
       icicle: icicleWeapon,
       bubble: bubbleWeapon,
@@ -2015,6 +2037,63 @@
         },
       },
       {
+        name: "Rocks",
+        text: "Shoot rocks that damage and knock enemies back.",
+        weapon: "rock",
+        unlock: true,
+        available: () => !rockWeapon.unlocked,
+        apply: () => {
+          rockWeapon.unlocked = true;
+          rockWeapon.level = 1;
+          rockWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Bigger Rocks",
+        text: "Rock size +18% and knockback +12.",
+        weapon: "rock",
+        available: () => rockWeapon.unlocked,
+        apply: () => {
+          rockWeapon.size *= 1.18;
+          rockWeapon.knockback += 12;
+        },
+      },
+      {
+        name: "Hard Stones",
+        text: "Rock damage +9.",
+        weapon: "rock",
+        available: () => rockWeapon.unlocked,
+        apply: () => rockWeapon.damage += 9,
+      },
+      {
+        name: "Pebble Storm",
+        text: "Shoot one additional rock.",
+        weapon: "rock",
+        available: () => rockWeapon.unlocked,
+        apply: () => rockWeapon.count += 1,
+      },
+      {
+        name: "Fast Pitch",
+        text: "Rocks fire 18% faster and fly 18% faster.",
+        weapon: "rock",
+        available: () => rockWeapon.unlocked,
+        apply: () => {
+          rockWeapon.cooldown = Math.max(0.3, rockWeapon.cooldown * 0.82);
+          rockWeapon.speed *= 1.18;
+        },
+      },
+      {
+        name: "Boulder Toss",
+        text: "Rock damage +5, size +10%, and knockback +18.",
+        weapon: "rock",
+        available: () => rockWeapon.unlocked,
+        apply: () => {
+          rockWeapon.damage += 5;
+          rockWeapon.size *= 1.1;
+          rockWeapon.knockback += 18;
+        },
+      },
+      {
         name: "Fireballs",
         text: "Shoot fireballs that splash and stack burning damage over time.",
         weapon: "fireball",
@@ -2690,6 +2769,20 @@
         apply: () => boostCriticalChance(0.07),
       },
       {
+        name: "Moon Lens",
+        text: "Night Time spotlight size +18%.",
+        weapon: "night",
+        available: () => world.difficultyId === "night",
+        apply: () => world.spotlightSize *= 1.18,
+      },
+      {
+        name: "Glow Cap",
+        text: "Night Time spotlight size +28%.",
+        weapon: "night",
+        available: () => world.difficultyId === "night",
+        apply: () => world.spotlightSize *= 1.28,
+      },
+      {
         name: "Healing Potion",
         text: "Periodically heal the frog instead of damaging enemies.",
         weapon: "potion",
@@ -2842,6 +2935,7 @@
         + (rainWeapon.unlocked ? 1 : 0)
         + (bananaWeapon.unlocked ? 1 : 0)
         + (shockWaveWeapon.unlocked ? 1 : 0)
+        + (rockWeapon.unlocked ? 1 : 0)
         + (fireballWeapon.unlocked ? 1 : 0)
         + (icicleWeapon.unlocked ? 1 : 0)
         + (bubbleWeapon.unlocked ? 1 : 0)
@@ -2877,6 +2971,7 @@
       ui.rainPill.hidden = !rainWeapon.unlocked;
       ui.bananaPill.hidden = !bananaWeapon.unlocked;
       ui.shockPill.hidden = !shockWaveWeapon.unlocked;
+      ui.rockPill.hidden = !rockWeapon.unlocked;
       ui.fireballPill.hidden = !fireballWeapon.unlocked;
       ui.iciclePill.hidden = !icicleWeapon.unlocked;
       ui.bubblePill.hidden = !bubbleWeapon.unlocked;
@@ -2908,6 +3003,7 @@
       ui.rain.textContent = rainWeapon.unlocked ? rainWeapon.level : "-";
       ui.banana.textContent = bananaWeapon.unlocked ? bananaWeapon.level : "-";
       ui.shock.textContent = shockWaveWeapon.unlocked ? shockWaveWeapon.level : "-";
+      ui.rock.textContent = rockWeapon.unlocked ? rockWeapon.level : "-";
       ui.fireball.textContent = fireballWeapon.unlocked ? fireballWeapon.level : "-";
       ui.icicle.textContent = icicleWeapon.unlocked ? icicleWeapon.level : "-";
       ui.bubble.textContent = bubbleWeapon.unlocked ? bubbleWeapon.level : "-";
@@ -2969,6 +3065,7 @@
         thirdSpawnChance: Math.max(0, (above - 8) * 0.045),
         playerDamage: 1,
         mouseShotInterval: 1,
+        spotlight: 1,
       };
       if (world.difficultyId === "hardcore") {
         tuning.health = 2.45;
@@ -2981,6 +3078,9 @@
         tuning.thirdSpawnChance = 0.22;
         tuning.playerDamage = 4;
         tuning.mouseShotInterval = 2;
+      }
+      if (world.difficultyId === "night") {
+        tuning.spotlight = 0.72;
       }
       return tuning;
     }
@@ -3180,7 +3280,7 @@
       const tuning = difficultyTuning();
       const averageHp = averageNonBossHp();
       const mouseHp = Math.max(780, averageHp * 12);
-      const bossTypes = ["mouse", "queenBee", "bird", "worm"];
+      const bossTypes = ["mouse", "queenBee", "bird", "worm", "butterfly", "fish", "scorpion"];
       const type = bossTypes[Math.floor(Math.random() * bossTypes.length)];
 
       const stats = {
@@ -3212,6 +3312,27 @@
           damage: 24,
           color: "#b56b7a",
         },
+        butterfly: {
+          radius: 36,
+          hp: Math.max(840, averageHp * 14),
+          speed: 30 + Math.min(16, world.time / 110),
+          damage: 18,
+          color: "#d88df2",
+        },
+        fish: {
+          radius: 38,
+          hp: Math.max(900, averageHp * 15),
+          speed: 54 + Math.min(18, world.time / 120),
+          damage: 22,
+          color: "#5eb6d9",
+        },
+        scorpion: {
+          radius: 40,
+          hp: Math.max(980, averageHp * 17),
+          speed: 28 + Math.min(12, world.time / 130),
+          damage: 24,
+          color: "#6f4a92",
+        },
       }[type];
       stats.hp *= tuning.health;
       stats.speed *= tuning.speed;
@@ -3219,6 +3340,9 @@
       const boss = makeBossBase(type, pos, stats.radius, stats.hp, stats.speed, stats.damage, stats.color);
       if (type === "mouse") boss.shotTimer = 1.2;
       if (type === "queenBee") boss.spawnTimer = 2.2;
+      if (type === "butterfly") boss.healTimer = 3.8;
+      if (type === "fish") boss.puddleTimer = 0.2;
+      if (type === "scorpion") boss.shotTimer = 2.7;
       if (type === "worm") {
         boss.healTimer = 1.1;
         boss.healAmount = Math.max(18, stats.hp * 0.025);
@@ -3661,6 +3785,31 @@
           maxLife: shockWaveWeapon.duration,
           phase: Math.random() * Math.PI * 2,
           hitIds: new Set(),
+        });
+      }
+    }
+
+    function fireRocks() {
+      if (!rockWeapon.unlocked) return;
+      const target = findTarget(720) || randomVisibleEnemy();
+      if (!target) return;
+      const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = Math.min(0.9, 0.2 * (rockWeapon.count - 1));
+      for (let i = 0; i < rockWeapon.count; i += 1) {
+        const offset = rockWeapon.count === 1
+          ? 0
+          : -spread / 2 + (spread * i) / (rockWeapon.count - 1);
+        const angle = baseAngle + offset;
+        rocks.push({
+          x: player.x + Math.cos(angle) * 22,
+          y: player.y + Math.sin(angle) * 22,
+          vx: Math.cos(angle) * rockWeapon.speed,
+          vy: Math.sin(angle) * rockWeapon.speed,
+          radius: 9 * rockWeapon.size,
+          damage: rockWeapon.damage,
+          knockback: rockWeapon.knockback,
+          life: 1.65,
+          spin: Math.random() * Math.PI * 2,
         });
       }
     }
@@ -4158,6 +4307,22 @@
       });
     }
 
+    function fireScorpionProjectile(boss) {
+      const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+      const speed = 150 + Math.min(70, world.time * 0.25);
+      enemyProjectiles.push({
+        x: boss.x,
+        y: boss.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 8,
+        damage: 7 + Math.floor(world.time / 180) * 2,
+        poison: 7,
+        life: 5,
+        color: "#b15dff",
+      });
+    }
+
     function gainXp(amount) {
       player.xp += amount;
       while (player.xp >= player.xpNeeded) {
@@ -4191,11 +4356,14 @@
         queenBee: 38,
         bird: 55,
         worm: 44,
+        butterfly: 42,
+        fish: 46,
+        scorpion: 50,
       };
       const expValue = enemy.expValue || expValues[enemy.type] || 2;
       if (enemy.isBoss) {
-        const gemCount = enemy.type === "bird" ? 26 : enemy.type === "worm" ? 22 : enemy.type === "queenBee" ? 20 : 16;
-        const gemValue = enemy.type === "bird" ? 8 : enemy.type === "worm" ? 7 : enemy.type === "queenBee" ? 7 : 6;
+        const gemCount = enemy.type === "bird" ? 26 : enemy.type === "scorpion" ? 24 : enemy.type === "fish" ? 23 : enemy.type === "worm" ? 22 : enemy.type === "butterfly" ? 21 : enemy.type === "queenBee" ? 20 : 16;
+        const gemValue = enemy.type === "bird" ? 8 : enemy.type === "scorpion" ? 8 : enemy.type === "fish" ? 7 : enemy.type === "worm" ? 7 : enemy.type === "butterfly" ? 7 : enemy.type === "queenBee" ? 7 : 6;
         for (let i = 0; i < gemCount; i += 1) {
           const angle = (Math.PI * 2 * i) / gemCount;
           const spread = 18 + (i % 5) * 10;
@@ -4265,6 +4433,7 @@
             if (upgrade.weapon === "rain") rainWeapon.level += 1;
             if (upgrade.weapon === "banana") bananaWeapon.level += 1;
             if (upgrade.weapon === "shock") shockWaveWeapon.level += 1;
+            if (upgrade.weapon === "rock") rockWeapon.level += 1;
             if (upgrade.weapon === "fireball") fireballWeapon.level += 1;
             if (upgrade.weapon === "icicle") icicleWeapon.level += 1;
             if (upgrade.weapon === "bubble") bubbleWeapon.level += 1;
@@ -4313,6 +4482,7 @@
       rainWeapon.timer -= dt;
       bananaWeapon.timer -= dt;
       shockWaveWeapon.timer -= dt;
+      rockWeapon.timer -= dt;
       fireballWeapon.timer -= dt;
       icicleWeapon.timer -= dt;
       bubbleWeapon.timer -= dt;
@@ -4327,11 +4497,31 @@
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
       potionBuff.iceTime = Math.max(0, potionBuff.iceTime - dt);
       player.hurtTimer = Math.max(0, player.hurtTimer - dt);
+      player.poisonDelay = Math.max(0, player.poisonDelay - dt);
+      if (player.poisonTime > 0) {
+        player.poisonTime = Math.max(0, player.poisonTime - dt);
+        if (player.poisonDelay <= 0) {
+          const poisonHit = player.poisonDamage * dt;
+          player.hp -= poisonHit;
+          player.hurtTimer = Math.max(player.hurtTimer, 0.08);
+          if (player.hp <= 0) endRun();
+        }
+      } else if (player.poisonDamage > 0) {
+        player.poisonDamage = 0;
+        player.poisonDelay = 0;
+      }
 
       const move = getMoveVector();
       if (move.moving) {
-        player.x = clamp(player.x + move.x * player.speed * dt, player.radius, world.width - player.radius);
-        player.y = clamp(player.y + move.y * player.speed * dt, player.radius, world.height - player.radius);
+        let playerSlow = 0;
+        for (const puddle of puddles) {
+          if (puddle.affectsPlayer && distanceSq(player, puddle) < (puddle.radius + player.radius) ** 2) {
+            playerSlow = Math.max(playerSlow, puddle.playerSlow || 0.32);
+          }
+        }
+        const playerSpeedScale = 1 - clamp(playerSlow, 0, 0.65);
+        player.x = clamp(player.x + move.x * player.speed * playerSpeedScale * dt, player.radius, world.width - player.radius);
+        player.y = clamp(player.y + move.y * player.speed * playerSpeedScale * dt, player.radius, world.height - player.radius);
         if (puddleWeapon.unlocked && puddleWeapon.timer <= 0) {
           dropPuddle();
           puddleWeapon.timer = puddleWeapon.dropEvery;
@@ -4430,6 +4620,11 @@
         shockWaveWeapon.timer = shockWaveWeapon.cooldown;
       }
 
+      if (rockWeapon.unlocked && rockWeapon.timer <= 0) {
+        fireRocks();
+        rockWeapon.timer = rockWeapon.cooldown;
+      }
+
       if (fireballWeapon.unlocked && fireballWeapon.timer <= 0) {
         fireFireballs();
         fireballWeapon.timer = fireballWeapon.cooldown;
@@ -4505,6 +4700,30 @@
         }
 
         if (hit || arrow.life <= 0) projectiles.splice(i, 1);
+      }
+
+      for (let i = rocks.length - 1; i >= 0; i -= 1) {
+        const rock = rocks[i];
+        rock.x += rock.vx * dt;
+        rock.y += rock.vy * dt;
+        rock.life -= dt;
+        rock.spin += dt * 10;
+        let hit = false;
+        for (const enemy of nearbyEnemies(rock.x, rock.y, rock.radius + 34)) {
+          if (enemy.dead) continue;
+          const hitRange = rock.radius + enemy.radius;
+          if (distanceSq(rock, enemy) < hitRange * hitRange) {
+            damageEnemy(enemy, rock.damage);
+            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+            enemy.x = clamp(enemy.x + Math.cos(angle) * rock.knockback, enemy.radius, world.width - enemy.radius);
+            enemy.y = clamp(enemy.y + Math.sin(angle) * rock.knockback, enemy.radius, world.height - enemy.radius);
+            floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(rock.damage), life: 0.42 });
+            if (enemy.hp <= 0) killEnemy(enemy);
+            hit = true;
+            break;
+          }
+        }
+        if (hit || rock.life <= 0) rocks.splice(i, 1);
       }
 
       for (let i = tadpoles.length - 1; i >= 0; i -= 1) {
@@ -4904,6 +5123,12 @@
           player.hp -= damage;
           player.hurtTimer = Math.max(player.hurtTimer, 0.35);
           floatText.push({ x: player.x, y: player.y - 24, text: `-${Math.round(damage)}`, life: 0.55, danger: true });
+          if (shot.poison) {
+            player.poisonTime = Math.max(player.poisonTime, 8);
+            player.poisonDelay = Math.max(player.poisonDelay, 1.4);
+            player.poisonDamage = Math.max(player.poisonDamage, shot.poison * playerDamageMultiplier());
+            floatText.push({ x: player.x, y: player.y - 42, text: "POISON", life: 0.65, danger: true });
+          }
           enemyProjectiles.splice(i, 1);
           if (player.hp <= 0) endRun();
           updateUi();
@@ -5084,8 +5309,8 @@
         for (const puddle of puddles) {
           const touchRange = puddle.radius + enemy.radius * 0.5;
           if (distanceSq(enemy, puddle) < touchRange * touchRange) {
-            slowAmount = Math.max(slowAmount, puddle.slow);
-            if (!puddle.hitCooldowns.has(enemy.id)) {
+            slowAmount = Math.max(slowAmount, puddle.slow || 0);
+            if (puddle.damage > 0 && !puddle.hitCooldowns.has(enemy.id)) {
               damageEnemy(enemy, puddle.damage);
               puddle.hitCooldowns.set(enemy.id, puddle.tickRate);
               floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(puddle.damage), life: 0.34 });
@@ -5121,6 +5346,49 @@
               floatText.push({ x: enemy.x, y: enemy.y - enemy.radius - 8, text: `+${Math.round(healed)}`, life: 0.45 });
             }
             enemy.healTimer = 1.1;
+          }
+        } else if (enemy.type === "butterfly") {
+          enemy.healTimer -= dt;
+          if (enemy.healTimer <= 0) {
+            let healedAny = false;
+            for (const ally of enemies) {
+              if (ally.dead || !isOnScreen(ally, 90)) continue;
+              const healAmount = Math.min(ally.maxHp - ally.hp, Math.max(8, ally.maxHp * 0.035));
+              if (healAmount <= 0) continue;
+              ally.hp += healAmount;
+              healedAny = true;
+            }
+            if (healedAny) {
+              floatText.push({ x: enemy.x, y: enemy.y - enemy.radius - 12, text: "HEAL", life: 0.65, heal: true });
+            }
+            enemy.healTimer = 4.2;
+          }
+        } else if (enemy.type === "fish") {
+          enemy.puddleTimer -= dt;
+          if (enemy.puddleTimer <= 0) {
+            puddles.push({
+              x: enemy.x,
+              y: enemy.y,
+              radius: 50,
+              damage: 0,
+              slow: 0,
+              affectsPlayer: true,
+              playerSlow: 0.42,
+              life: 5.2,
+              maxLife: 5.2,
+              tickRate: 0.65,
+              ripple: Math.random() * Math.PI * 2,
+              hitCooldowns: new Map(),
+              color: "#3c9fd4",
+            });
+            if (puddles.length > 110) puddles.shift();
+            enemy.puddleTimer = 0.75;
+          }
+        } else if (enemy.type === "scorpion") {
+          enemy.shotTimer -= dt;
+          if (enemy.shotTimer <= 0) {
+            fireScorpionProjectile(enemy);
+            enemy.shotTimer = Math.max(1.35, 2.7 - world.time * 0.001);
           }
         }
 
@@ -5171,9 +5439,16 @@
         }
         if (d < player.radius + heart.radius + 3) {
           const healed = Math.min(heart.heal, player.maxHp - player.hp);
+          const wasPoisoned = player.poisonTime > 0 || player.poisonDamage > 0;
           player.hp = Math.min(player.maxHp, player.hp + heart.heal);
           if (healed > 0) {
             floatText.push({ x: player.x, y: player.y - 32, text: `+${Math.round(healed)}`, life: 0.65, heal: true });
+          }
+          if (wasPoisoned) {
+            player.poisonTime = 0;
+            player.poisonDamage = 0;
+            player.poisonDelay = 0;
+            floatText.push({ x: player.x, y: player.y - 50, text: "CURED", life: 0.75, heal: true });
           }
           hearts.splice(i, 1);
           updateUi();
@@ -5197,7 +5472,7 @@
         .filter((id) => supportBoosts[id].unlocked)
         .map((id) => `${id} ${supportBoosts[id].level}`)
         .join(" - ");
-      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Rocks ${rockWeapon.unlocked ? rockWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
       const score = {
         difficultyId: world.difficultyId,
         level: player.level,
@@ -5296,6 +5571,7 @@
       world.difficulty = 5;
       world.difficultyId = "normal";
       world.masteryMode = false;
+      world.spotlightSize = 1;
       pendingScore = null;
 
       player.x = world.width / 2;
@@ -5304,6 +5580,9 @@
       player.maxHp = 100;
       player.hp = player.maxHp;
       player.hurtTimer = 0;
+      player.poisonTime = 0;
+      player.poisonDamage = 0;
+      player.poisonDelay = 0;
       player.level = 1;
       player.xp = 0;
       player.xpNeeded = 8;
@@ -5436,6 +5715,16 @@
       shockWaveWeapon.duration = 1.65;
       shockWaveWeapon.timer = 0;
 
+      rockWeapon.unlocked = false;
+      rockWeapon.level = 0;
+      rockWeapon.damage = 24;
+      rockWeapon.size = 1;
+      rockWeapon.count = 1;
+      rockWeapon.cooldown = 1.05;
+      rockWeapon.speed = 460;
+      rockWeapon.knockback = 68;
+      rockWeapon.timer = 0;
+
       fireballWeapon.unlocked = false;
       fireballWeapon.level = 0;
       fireballWeapon.damage = 8;
@@ -5553,6 +5842,7 @@
       raindrops.length = 0;
       bananas.length = 0;
       shockWaves.length = 0;
+      rocks.length = 0;
       fireballs.length = 0;
       icicles.length = 0;
       bubbles.length = 0;
@@ -5587,6 +5877,13 @@
 
     function screenY(y) {
       return y - world.cameraY;
+    }
+
+    function isOnScreen(entity, margin = 0) {
+      return entity.x >= world.cameraX - margin
+        && entity.x <= world.cameraX + window.innerWidth + margin
+        && entity.y >= world.cameraY - margin
+        && entity.y <= world.cameraY + window.innerHeight + margin;
     }
 
     function drawGround() {
@@ -6161,6 +6458,106 @@
           ctx.arc(0, 0, enemy.radius * 0.92 + Math.sin(world.time * 5) * 2, -0.7, 0.7);
           ctx.stroke();
           ctx.restore();
+        } else if (enemy.type === "butterfly") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const flap = 1 + Math.sin(enemy.pulse * 3.2) * 0.12;
+
+          ctx.fillStyle = "rgba(216, 141, 242, 0.78)";
+          ctx.strokeStyle = "#5a276f";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(-enemy.radius * 0.45, -enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.46 * flap, -0.55, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.45, -enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.46 * flap, 0.55, 0, Math.PI * 2);
+          ctx.ellipse(-enemy.radius * 0.36, enemy.radius * 0.38, enemy.radius * 0.5, enemy.radius * 0.34 * flap, 0.45, 0, Math.PI * 2);
+          ctx.ellipse(enemy.radius * 0.36, enemy.radius * 0.38, enemy.radius * 0.5, enemy.radius * 0.34 * flap, -0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#6a347e";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, enemy.radius * 0.18, enemy.radius * 0.82, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "#6ad46e";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, enemy.radius * 0.95 + Math.sin(world.time * 5) * 2, -0.45, Math.PI + 0.45);
+          ctx.stroke();
+          ctx.restore();
+        } else if (enemy.type === "fish") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const swim = Math.sin(enemy.pulse * 2.2) * enemy.radius * 0.08;
+
+          ctx.fillStyle = "#5eb6d9";
+          ctx.strokeStyle = "#17495d";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, enemy.radius * 0.95, enemy.radius * 0.55, swim * 0.01, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#4a9fc0";
+          ctx.beginPath();
+          ctx.moveTo(-enemy.radius * 0.85, 0);
+          ctx.lineTo(-enemy.radius * 1.42, -enemy.radius * 0.42);
+          ctx.lineTo(-enemy.radius * 1.32, enemy.radius * 0.42);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#d9f8ff";
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 0.42, -enemy.radius * 0.18, enemy.radius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#0e2c36";
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 0.45, -enemy.radius * 0.18, enemy.radius * 0.055, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (enemy.type === "scorpion") {
+          ctx.save();
+          ctx.translate(x, y + wobble);
+          const pinch = Math.sin(enemy.pulse * 2.6) * enemy.radius * 0.05;
+
+          ctx.fillStyle = "#6f4a92";
+          ctx.strokeStyle = "#261638";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(0, 4, enemy.radius * 0.78, enemy.radius * 0.55, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, -enemy.radius * 0.45, enemy.radius * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "#261638";
+          ctx.lineWidth = 4;
+          ctx.lineCap = "round";
+          for (let side of [-1, 1]) {
+            ctx.beginPath();
+            ctx.moveTo(side * enemy.radius * 0.42, -enemy.radius * 0.2);
+            ctx.lineTo(side * enemy.radius * 1.02, -enemy.radius * 0.52 + pinch);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(side * enemy.radius * 1.12, -enemy.radius * 0.54 + pinch, enemy.radius * 0.18, 0.2, Math.PI * 1.8);
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(0, enemy.radius * 0.42);
+          ctx.quadraticCurveTo(enemy.radius * 0.46, enemy.radius * 1.0, enemy.radius * 0.12, enemy.radius * 1.38);
+          ctx.lineTo(enemy.radius * 0.32, enemy.radius * 1.54);
+          ctx.stroke();
+
+          ctx.fillStyle = "#b15dff";
+          ctx.beginPath();
+          ctx.arc(enemy.radius * 0.32, enemy.radius * 1.54, enemy.radius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         } else if (enemy.type === "ant") {
           ctx.save();
           ctx.translate(x, y + wobble);
@@ -6730,19 +7127,44 @@
         ctx.restore();
       }
 
+      for (const rock of rocks) {
+        const x = screenX(rock.x);
+        const y = screenY(rock.y);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rock.spin);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
+        ctx.beginPath();
+        ctx.ellipse(0, rock.radius * 0.65, rock.radius * 0.92, rock.radius * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#8d8374";
+        ctx.strokeStyle = "#3d352c";
+        ctx.lineWidth = Math.max(2, rock.radius * 0.16);
+        ctx.beginPath();
+        ctx.arc(0, 0, rock.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(54, 45, 37, 0.42)";
+        ctx.beginPath();
+        ctx.arc(-rock.radius * 0.28, -rock.radius * 0.18, rock.radius * 0.18, 0, Math.PI * 2);
+        ctx.arc(rock.radius * 0.22, rock.radius * 0.2, rock.radius * 0.13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
       for (const shot of enemyProjectiles) {
         const x = screenX(shot.x);
         const y = screenY(shot.y);
         ctx.save();
         ctx.translate(x, y);
-        ctx.fillStyle = "#f2d7a6";
-        ctx.strokeStyle = "#6b4930";
+        ctx.fillStyle = shot.color || "#f2d7a6";
+        ctx.strokeStyle = shot.poison ? "#3a145d" : "#6b4930";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(0, 0, shot.radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = "rgba(255, 245, 210, 0.7)";
+        ctx.fillStyle = shot.poison ? "rgba(235, 207, 255, 0.74)" : "rgba(255, 245, 210, 0.7)";
         ctx.beginPath();
         ctx.arc(-shot.radius * 0.25, -shot.radius * 0.25, shot.radius * 0.3, 0, Math.PI * 2);
         ctx.fill();
@@ -7128,7 +7550,7 @@
 
         ctx.save();
         ctx.globalAlpha = 0.22 + alpha * 0.38;
-        ctx.fillStyle = "#5ab9d6";
+        ctx.fillStyle = puddle.color || "#5ab9d6";
         ctx.strokeStyle = "rgba(178, 239, 247, 0.75)";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -7157,6 +7579,59 @@
       ctx.globalAlpha = 1;
     }
 
+    function drawNightOverlay() {
+      if (world.difficultyId !== "night") return;
+      const lightRadius = Math.min(360, Math.max(145, Math.min(window.innerWidth, window.innerHeight) * 0.28))
+        * world.spotlightSize * difficultyTuning().spotlight;
+      const x = screenX(player.x);
+      const y = screenY(player.y);
+      const gradient = ctx.createRadialGradient(x, y, lightRadius * 0.32, x, y, lightRadius);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.96)";
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.globalCompositeOperation = "destination-out";
+      gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+      gradient.addColorStop(0.72, "rgba(0, 0, 0, 0.76)");
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(x, y, lightRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#cfe9a6";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, lightRadius * 0.94, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawLowHealthOverlay() {
+      const healthRatio = player.hp / player.maxHp;
+      if (healthRatio >= 0.34 || world.ended) return;
+      const alpha = clamp((0.34 - healthRatio) / 0.34, 0, 1) * 0.55;
+      const gradient = ctx.createRadialGradient(
+        window.innerWidth / 2,
+        window.innerHeight / 2,
+        Math.min(window.innerWidth, window.innerHeight) * 0.22,
+        window.innerWidth / 2,
+        window.innerHeight / 2,
+        Math.max(window.innerWidth, window.innerHeight) * 0.72
+      );
+
+      gradient.addColorStop(0, "rgba(255, 0, 0, 0)");
+      gradient.addColorStop(0.62, `rgba(255, 0, 0, ${alpha * 0.16})`);
+      gradient.addColorStop(1, `rgba(184, 0, 0, ${alpha})`);
+      ctx.save();
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.restore();
+    }
+
     function draw() {
       drawGround();
       drawPuddles();
@@ -7174,6 +7649,8 @@
       drawPlayer();
       drawTongues();
       drawFloatText();
+      drawNightOverlay();
+      drawLowHealthOverlay();
     }
 
     let last = performance.now();
