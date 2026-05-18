@@ -7585,16 +7585,20 @@
         * world.spotlightSize * difficultyTuning().spotlight;
       const x = screenX(player.x);
       const y = screenY(player.y);
-      const gradient = ctx.createRadialGradient(x, y, lightRadius * 0.32, x, y, lightRadius);
 
       ctx.save();
-      ctx.fillStyle = "rgba(0, 0, 0, 0.96)";
-      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-      ctx.globalCompositeOperation = "destination-out";
-      gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-      gradient.addColorStop(0.72, "rgba(0, 0, 0, 0.76)");
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.rect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.arc(x, y, lightRadius, 0, Math.PI * 2, true);
+      ctx.fill("evenodd");
+      ctx.restore();
+
+      ctx.save();
+      const edge = ctx.createRadialGradient(x, y, lightRadius * 0.62, x, y, lightRadius);
+      edge.addColorStop(0, "rgba(0, 0, 0, 0)");
+      edge.addColorStop(1, "rgba(0, 0, 0, 0.52)");
+      ctx.fillStyle = edge;
       ctx.beginPath();
       ctx.arc(x, y, lightRadius, 0, Math.PI * 2);
       ctx.fill();
