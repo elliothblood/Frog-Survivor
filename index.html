@@ -670,6 +670,7 @@
       cameraX: 0,
       cameraY: 0,
       pendingUpgrades: 0,
+      pendingChestUpgrades: 0,
       difficulty: 5,
       difficultyId: "normal",
       masteryMode: false,
@@ -4412,16 +4413,20 @@
     }
 
     function openUpgradeChoice() {
+      const choosingChest = world.pendingChestUpgrades > 0;
       world.pendingUpgrades = Math.max(0, world.pendingUpgrades - 1);
+      if (choosingChest) world.pendingChestUpgrades = Math.max(0, world.pendingChestUpgrades - 1);
       world.paused = true;
       ui.levelUp.classList.add("show");
       ui.choicePanel.classList.remove("difficulty-mode");
       ui.choiceLeaderboard.hidden = true;
       ui.upgradeGrid.innerHTML = "";
       const choosingStarter = ownedWeaponCount() === 0;
-      ui.upgradeTitle.textContent = choosingStarter ? "Choose a starting weapon" : "Choose an upgrade";
+      ui.upgradeTitle.textContent = choosingStarter ? "Choose a starting weapon" : choosingChest ? "Choose a chest upgrade" : "Choose an upgrade";
       ui.upgradeSubtitle.textContent = choosingStarter
         ? "Pick the first weapon for this run."
+        : choosingChest
+          ? "The treasure chest grants a free upgrade."
         : "The world pauses while you sharpen the build.";
 
       const canAddWeapon = ownedWeaponCount() < weaponSlotLimit();
@@ -5447,6 +5452,7 @@
         if (d < player.radius + gem.radius + 3) {
           if (gem.kind === "chest") {
             world.pendingUpgrades += 1;
+            world.pendingChestUpgrades += 1;
             floatText.push({ x: player.x, y: player.y - 38, text: "CHEST!", life: 0.75, heal: true });
             if (!world.paused) openUpgradeChoice();
           } else {
@@ -5597,6 +5603,7 @@
       world.antTimer = 34;
       world.heartTimer = 7;
       world.pendingUpgrades = 0;
+      world.pendingChestUpgrades = 0;
       world.difficulty = 5;
       world.difficultyId = "normal";
       world.masteryMode = false;
@@ -6497,10 +6504,10 @@
           ctx.strokeStyle = "#5a276f";
           ctx.lineWidth = 3;
           const wings = [
-            [-0.48, -0.28, 0.62, 0.42, -0.62],
-            [0.48, -0.28, 0.62, 0.42, 0.62],
-            [-0.42, 0.34, 0.5, 0.34, 0.52],
-            [0.42, 0.34, 0.5, 0.34, -0.52],
+            [-0.56, -0.34, 0.62, 0.4, -0.98],
+            [0.56, -0.34, 0.62, 0.4, 0.98],
+            [-0.48, 0.36, 0.5, 0.32, 0.82],
+            [0.48, 0.36, 0.5, 0.32, -0.82],
           ];
           for (const wing of wings) {
             ctx.beginPath();
