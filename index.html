@@ -3332,7 +3332,7 @@
           hp: Math.max(980, averageHp * 17),
           speed: 28 + Math.min(12, world.time / 130),
           damage: 24,
-          color: "#6f4a92",
+          color: "#c69b63",
         },
       }[type];
       stats.hp *= tuning.health;
@@ -6493,27 +6493,34 @@
           ctx.translate(x, y + wobble);
           const flap = 1 + Math.sin(enemy.pulse * 3.2) * 0.12;
 
-          ctx.fillStyle = "rgba(216, 141, 242, 0.78)";
+          ctx.fillStyle = "rgba(216, 141, 242, 0.82)";
           ctx.strokeStyle = "#5a276f";
           ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.ellipse(-enemy.radius * 0.45, -enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.46 * flap, -0.55, 0, Math.PI * 2);
-          ctx.ellipse(enemy.radius * 0.45, -enemy.radius * 0.12, enemy.radius * 0.72, enemy.radius * 0.46 * flap, 0.55, 0, Math.PI * 2);
-          ctx.ellipse(-enemy.radius * 0.36, enemy.radius * 0.38, enemy.radius * 0.5, enemy.radius * 0.34 * flap, 0.45, 0, Math.PI * 2);
-          ctx.ellipse(enemy.radius * 0.36, enemy.radius * 0.38, enemy.radius * 0.5, enemy.radius * 0.34 * flap, -0.45, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
+          const wings = [
+            [-0.48, -0.28, 0.62, 0.42, -0.62],
+            [0.48, -0.28, 0.62, 0.42, 0.62],
+            [-0.42, 0.34, 0.5, 0.34, 0.52],
+            [0.42, 0.34, 0.5, 0.34, -0.52],
+          ];
+          for (const wing of wings) {
+            ctx.beginPath();
+            ctx.ellipse(
+              enemy.radius * wing[0],
+              enemy.radius * wing[1],
+              enemy.radius * wing[2],
+              enemy.radius * wing[3] * flap,
+              wing[4],
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+            ctx.stroke();
+          }
 
           ctx.fillStyle = "#6a347e";
           ctx.beginPath();
           ctx.ellipse(0, 0, enemy.radius * 0.18, enemy.radius * 0.82, 0, 0, Math.PI * 2);
           ctx.fill();
-          ctx.stroke();
-
-          ctx.strokeStyle = "#6ad46e";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(0, 0, enemy.radius * 0.95 + Math.sin(world.time * 5) * 2, -0.45, Math.PI + 0.45);
           ctx.stroke();
           ctx.restore();
         } else if (enemy.type === "fish") {
@@ -6552,8 +6559,8 @@
           ctx.translate(x, y + wobble);
           const pinch = Math.sin(enemy.pulse * 2.6) * enemy.radius * 0.05;
 
-          ctx.fillStyle = "#6f4a92";
-          ctx.strokeStyle = "#261638";
+          ctx.fillStyle = "#c69b63";
+          ctx.strokeStyle = "#5c3b1e";
           ctx.lineWidth = 3;
           ctx.beginPath();
           ctx.ellipse(0, 4, enemy.radius * 0.78, enemy.radius * 0.55, 0, 0, Math.PI * 2);
@@ -6564,7 +6571,19 @@
           ctx.fill();
           ctx.stroke();
 
-          ctx.strokeStyle = "#261638";
+          ctx.strokeStyle = "#5c3b1e";
+          ctx.lineWidth = 3.2;
+          ctx.lineCap = "round";
+          for (const side of [-1, 1]) {
+            for (const leg of [-0.3, 0.02, 0.34]) {
+              ctx.beginPath();
+              ctx.moveTo(side * enemy.radius * 0.34, enemy.radius * leg);
+              ctx.lineTo(side * enemy.radius * 0.78, enemy.radius * (leg + 0.06));
+              ctx.lineTo(side * enemy.radius * 1.05, enemy.radius * (leg + 0.25));
+              ctx.stroke();
+            }
+          }
+
           ctx.lineWidth = 4;
           ctx.lineCap = "round";
           for (let side of [-1, 1]) {
@@ -6583,7 +6602,7 @@
           ctx.lineTo(enemy.radius * 0.32, enemy.radius * 1.54);
           ctx.stroke();
 
-          ctx.fillStyle = "#b15dff";
+          ctx.fillStyle = "#7e4d25";
           ctx.beginPath();
           ctx.arc(enemy.radius * 0.32, enemy.radius * 1.54, enemy.radius * 0.12, 0, Math.PI * 2);
           ctx.fill();
