@@ -467,6 +467,7 @@
         <div class="pill weapon" id="ringPill" hidden><small>Ring</small><span id="ring">-</span></div>
         <div class="pill weapon" id="skyPill" hidden><small>Sky</small><span id="sky">-</span></div>
         <div class="pill weapon" id="minePill" hidden><small>Mine</small><span id="mine">-</span></div>
+        <div class="pill weapon" id="lilyPill" hidden><small>Lily</small><span id="lily">-</span></div>
         <div class="pill weapon" id="tadpolePill" hidden><small>Tad</small><span id="tadpole">-</span></div>
         <div class="pill weapon" id="tonguePill" hidden><small>Tongue</small><span id="tongue">-</span></div>
         <div class="pill weapon" id="puddlePill" hidden><small>Puddle</small><span id="puddle">-</span></div>
@@ -579,6 +580,7 @@
       ring: document.querySelector("#ring"),
       sky: document.querySelector("#sky"),
       mine: document.querySelector("#mine"),
+      lily: document.querySelector("#lily"),
       tadpole: document.querySelector("#tadpole"),
       tongue: document.querySelector("#tongue"),
       puddle: document.querySelector("#puddle"),
@@ -611,6 +613,7 @@
       ringPill: document.querySelector("#ringPill"),
       skyPill: document.querySelector("#skyPill"),
       minePill: document.querySelector("#minePill"),
+      lilyPill: document.querySelector("#lilyPill"),
       tadpolePill: document.querySelector("#tadpolePill"),
       tonguePill: document.querySelector("#tonguePill"),
       puddlePill: document.querySelector("#puddlePill"),
@@ -776,6 +779,18 @@
       count: 2,
       cooldown: 4.2,
       timer: 0,
+    };
+
+    const explodingLily = {
+      unlocked: false,
+      level: 0,
+      damage: 44,
+      radius: 28,
+      cooldown: 5.8,
+      chargePower: 0.85,
+      timer: 0,
+      duration: 18,
+      maxLilies: 5,
     };
 
     const tadpoleWeapon = {
@@ -1025,6 +1040,7 @@
     const lightningOrbs = [];
     const skyLasers = [];
     const mines = [];
+    const explodingLilies = [];
     const explosions = [];
     const gems = [];
     const hearts = [];
@@ -1070,6 +1086,7 @@
       ring: energyRing,
       sky: skyLaser,
       mine: landMine,
+      lily: explodingLily,
       tadpole: tadpoleWeapon,
       tongue: tongueWeapon,
       puddle: puddleWeapon,
@@ -1723,6 +1740,57 @@
           landMine.damage += 12;
           landMine.size *= 1.1;
           landMine.count += 1;
+        },
+      },
+      {
+        name: "Exploding Lily",
+        text: "Create orange lily pads that charge while touched, then explode when you step away.",
+        weapon: "lily",
+        unlock: true,
+        available: () => !explodingLily.unlocked,
+        apply: () => {
+          explodingLily.unlocked = true;
+          explodingLily.level = 1;
+          explodingLily.timer = 0;
+        },
+      },
+      {
+        name: "Faster Blooms",
+        text: "Exploding lilies spawn 18% more often.",
+        weapon: "lily",
+        available: () => explodingLily.unlocked,
+        apply: () => explodingLily.cooldown = Math.max(1.7, explodingLily.cooldown * 0.82),
+      },
+      {
+        name: "Hotter Petals",
+        text: "Exploding lily base damage +18.",
+        weapon: "lily",
+        available: () => explodingLily.unlocked,
+        apply: () => explodingLily.damage += 18,
+      },
+      {
+        name: "Wide Pad",
+        text: "Exploding lily base size +16%.",
+        weapon: "lily",
+        available: () => explodingLily.unlocked,
+        apply: () => explodingLily.radius *= 1.16,
+      },
+      {
+        name: "Pressure Bloom",
+        text: "Charging affects exploding lily blast size and damage more.",
+        weapon: "lily",
+        available: () => explodingLily.unlocked,
+        apply: () => explodingLily.chargePower += 0.35,
+      },
+      {
+        name: "Volcanic Lily",
+        text: "Exploding lily damage +8, size +10%, and stronger charging.",
+        weapon: "lily",
+        available: () => explodingLily.unlocked,
+        apply: () => {
+          explodingLily.damage += 8;
+          explodingLily.radius *= 1.1;
+          explodingLily.chargePower += 0.2;
         },
       },
       {
@@ -2931,6 +2999,7 @@
         + (energyRing.unlocked ? 1 : 0)
         + (skyLaser.unlocked ? 1 : 0)
         + (landMine.unlocked ? 1 : 0)
+        + (explodingLily.unlocked ? 1 : 0)
         + (tadpoleWeapon.unlocked ? 1 : 0)
         + (tongueWeapon.unlocked ? 1 : 0)
         + (puddleWeapon.unlocked ? 1 : 0)
@@ -2967,6 +3036,7 @@
       ui.ringPill.hidden = !energyRing.unlocked;
       ui.skyPill.hidden = !skyLaser.unlocked;
       ui.minePill.hidden = !landMine.unlocked;
+      ui.lilyPill.hidden = !explodingLily.unlocked;
       ui.tadpolePill.hidden = !tadpoleWeapon.unlocked;
       ui.tonguePill.hidden = !tongueWeapon.unlocked;
       ui.puddlePill.hidden = !puddleWeapon.unlocked;
@@ -2999,6 +3069,7 @@
       ui.ring.textContent = energyRing.unlocked ? energyRing.level : "-";
       ui.sky.textContent = skyLaser.unlocked ? skyLaser.level : "-";
       ui.mine.textContent = landMine.unlocked ? landMine.level : "-";
+      ui.lily.textContent = explodingLily.unlocked ? explodingLily.level : "-";
       ui.tadpole.textContent = tadpoleWeapon.unlocked ? tadpoleWeapon.level : "-";
       ui.tongue.textContent = tongueWeapon.unlocked ? tongueWeapon.level : "-";
       ui.puddle.textContent = puddleWeapon.unlocked ? puddleWeapon.level : "-";
@@ -4301,6 +4372,47 @@
       }
     }
 
+    function spawnExplodingLily() {
+      if (!explodingLily.unlocked) return;
+      if (explodingLilies.length >= explodingLily.maxLilies) explodingLilies.shift();
+      const pos = randomScreenPosition(115);
+      explodingLilies.push({
+        x: pos.x,
+        y: pos.y,
+        radius: explodingLily.radius,
+        damage: explodingLily.damage,
+        chargePower: explodingLily.chargePower,
+        charge: 0,
+        touching: false,
+        life: explodingLily.duration,
+        pulse: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function explodeLily(lily) {
+      const chargeScale = 1 + lily.charge * lily.chargePower;
+      const blastRadius = lily.radius * (2.05 + chargeScale * 0.72);
+      const blastDamage = lily.damage * chargeScale;
+      explosions.push({
+        x: lily.x,
+        y: lily.y,
+        radius: blastRadius,
+        life: 0.36,
+        maxLife: 0.36,
+        color: "#ff7f28",
+      });
+
+      for (const enemy of nearbyEnemies(lily.x, lily.y, blastRadius + 42)) {
+        if (enemy.dead) continue;
+        const hitRange = blastRadius + enemy.radius;
+        if (distanceSq(enemy, lily) < hitRange * hitRange) {
+          damageEnemy(enemy, blastDamage);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(blastDamage), life: 0.46 });
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+    }
+
     function splashTadpole(tadpole) {
       explosions.push({
         x: tadpole.x,
@@ -4460,6 +4572,7 @@
             if (upgrade.weapon === "ring") energyRing.level += 1;
             if (upgrade.weapon === "sky") skyLaser.level += 1;
             if (upgrade.weapon === "mine") landMine.level += 1;
+            if (upgrade.weapon === "lily") explodingLily.level += 1;
             if (upgrade.weapon === "tadpole") tadpoleWeapon.level += 1;
             if (upgrade.weapon === "tongue") tongueWeapon.level += 1;
             if (upgrade.weapon === "puddle") puddleWeapon.level += 1;
@@ -4525,6 +4638,7 @@
       bombWeapon.timer -= dt;
       reactorWeapon.timer -= dt;
       ancientBook.timer -= dt;
+      explodingLily.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -4626,6 +4740,11 @@
       if (landMine.unlocked && landMine.timer <= 0) {
         dropLandMines();
         landMine.timer = landMine.cooldown;
+      }
+
+      if (explodingLily.unlocked && explodingLily.timer <= 0) {
+        spawnExplodingLily();
+        explodingLily.timer = explodingLily.cooldown;
       }
 
       if (tadpoleWeapon.unlocked && tadpoleWeapon.timer <= 0) {
@@ -5188,6 +5307,24 @@
         }
       }
 
+      for (let i = explodingLilies.length - 1; i >= 0; i -= 1) {
+        const lily = explodingLilies[i];
+        lily.life -= dt;
+        lily.pulse += dt * 4;
+        const touchRange = player.radius + lily.radius * 0.8;
+        const touching = distanceSq(player, lily) < touchRange * touchRange;
+        if (touching) {
+          lily.touching = true;
+          lily.charge = Math.min(4, lily.charge + dt);
+          lily.life = Math.max(lily.life, 2.2);
+        } else if (lily.touching && lily.charge > 0) {
+          explodeLily(lily);
+          explodingLilies.splice(i, 1);
+          continue;
+        }
+        if (lily.life <= 0) explodingLilies.splice(i, 1);
+      }
+
       for (let i = asteroids.length - 1; i >= 0; i -= 1) {
         const asteroid = asteroids[i];
         asteroid.life -= dt;
@@ -5507,7 +5644,7 @@
         .filter((id) => supportBoosts[id].unlocked)
         .map((id) => `${id} ${supportBoosts[id].level}`)
         .join(" - ");
-      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Rocks ${rockWeapon.unlocked ? rockWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Lily ${explodingLily.unlocked ? explodingLily.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Rocks ${rockWeapon.unlocked ? rockWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
       const score = {
         difficultyId: world.difficultyId,
         level: player.level,
@@ -5691,6 +5828,16 @@
       landMine.count = 2;
       landMine.cooldown = 4.2;
       landMine.timer = 0;
+
+      explodingLily.unlocked = false;
+      explodingLily.level = 0;
+      explodingLily.damage = 44;
+      explodingLily.radius = 28;
+      explodingLily.cooldown = 5.8;
+      explodingLily.chargePower = 0.85;
+      explodingLily.timer = 0;
+      explodingLily.duration = 18;
+      explodingLily.maxLilies = 5;
 
       tadpoleWeapon.unlocked = false;
       tadpoleWeapon.level = 0;
@@ -5894,6 +6041,7 @@
       lightningOrbs.length = 0;
       skyLasers.length = 0;
       mines.length = 0;
+      explodingLilies.length = 0;
       explosions.length = 0;
       gems.length = 0;
       hearts.length = 0;
@@ -7482,6 +7630,46 @@
     }
 
     function drawMines() {
+      for (const lily of explodingLilies) {
+        const x = screenX(lily.x);
+        const y = screenY(lily.y);
+        const charge = clamp(lily.charge / 4, 0, 1);
+        const pulse = Math.sin(lily.pulse) * lily.radius * (0.03 + charge * 0.05);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.sin(lily.pulse * 0.45) * 0.12);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+        ctx.beginPath();
+        ctx.ellipse(0, lily.radius * 0.62, lily.radius * 1.08, lily.radius * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = `rgba(255, ${128 + Math.round(charge * 52)}, 36, 0.92)`;
+        ctx.strokeStyle = "#c51f1a";
+        ctx.lineWidth = Math.max(3, lily.radius * 0.14);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, lily.radius * 1.22 + pulse, lily.radius * 0.74 + pulse * 0.35, -0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(94, 45, 18, 0.48)";
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, lily.radius * 1.18, -0.12, 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        if (lily.charge > 0) {
+          ctx.globalAlpha = 0.34 + charge * 0.3;
+          ctx.strokeStyle = "#ffe36a";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, lily.radius * (1.55 + charge * 0.9), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       for (const mine of mines) {
         const x = screenX(mine.x);
         const y = screenY(mine.y);
