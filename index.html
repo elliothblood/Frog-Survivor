@@ -468,6 +468,7 @@
         <div class="pill weapon" id="skyPill" hidden><small>Sky</small><span id="sky">-</span></div>
         <div class="pill weapon" id="minePill" hidden><small>Mine</small><span id="mine">-</span></div>
         <div class="pill weapon" id="lilyPill" hidden><small>Lily</small><span id="lily">-</span></div>
+        <div class="pill weapon" id="leapfrogPill" hidden><small>Leap</small><span id="leapfrog">-</span></div>
         <div class="pill weapon" id="tadpolePill" hidden><small>Tad</small><span id="tadpole">-</span></div>
         <div class="pill weapon" id="tonguePill" hidden><small>Tongue</small><span id="tongue">-</span></div>
         <div class="pill weapon" id="puddlePill" hidden><small>Puddle</small><span id="puddle">-</span></div>
@@ -581,6 +582,7 @@
       sky: document.querySelector("#sky"),
       mine: document.querySelector("#mine"),
       lily: document.querySelector("#lily"),
+      leapfrog: document.querySelector("#leapfrog"),
       tadpole: document.querySelector("#tadpole"),
       tongue: document.querySelector("#tongue"),
       puddle: document.querySelector("#puddle"),
@@ -614,6 +616,7 @@
       skyPill: document.querySelector("#skyPill"),
       minePill: document.querySelector("#minePill"),
       lilyPill: document.querySelector("#lilyPill"),
+      leapfrogPill: document.querySelector("#leapfrogPill"),
       tadpolePill: document.querySelector("#tadpolePill"),
       tonguePill: document.querySelector("#tonguePill"),
       puddlePill: document.querySelector("#puddlePill"),
@@ -691,6 +694,7 @@
       poisonTime: 0,
       poisonDamage: 0,
       poisonDelay: 0,
+      leap: null,
       level: 1,
       xp: 0,
       xpNeeded: 8,
@@ -791,6 +795,18 @@
       timer: 0,
       duration: 18,
       maxLilies: 5,
+    };
+
+    const leapfrogWeapon = {
+      unlocked: false,
+      level: 0,
+      damage: 42,
+      splashRadius: 56,
+      cooldown: 7.2,
+      timer: 0,
+      radius: 26,
+      duration: 24,
+      maxPairs: 4,
     };
 
     const tadpoleWeapon = {
@@ -1041,6 +1057,7 @@
     const skyLasers = [];
     const mines = [];
     const explodingLilies = [];
+    const leapfrogPairs = [];
     const explosions = [];
     const gems = [];
     const hearts = [];
@@ -1087,6 +1104,7 @@
       sky: skyLaser,
       mine: landMine,
       lily: explodingLily,
+      leapfrog: leapfrogWeapon,
       tadpole: tadpoleWeapon,
       tongue: tongueWeapon,
       puddle: puddleWeapon,
@@ -1791,6 +1809,50 @@
           explodingLily.damage += 8;
           explodingLily.radius *= 1.1;
           explodingLily.chargePower += 0.2;
+        },
+      },
+      {
+        name: "Leapfrog",
+        text: "Create paired lily pads. Step on one to jump to the other, splashing enemies you touch.",
+        weapon: "leapfrog",
+        unlock: true,
+        available: () => !leapfrogWeapon.unlocked,
+        apply: () => {
+          leapfrogWeapon.unlocked = true;
+          leapfrogWeapon.level = 1;
+          leapfrogWeapon.timer = 0;
+        },
+      },
+      {
+        name: "Quick Pads",
+        text: "Leapfrog pairs spawn 18% more often.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => leapfrogWeapon.cooldown = Math.max(2.1, leapfrogWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Belly Flop",
+        text: "Leapfrog jump damage +15.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => leapfrogWeapon.damage += 15,
+      },
+      {
+        name: "Big Splash",
+        text: "Leapfrog splash size +18%.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => leapfrogWeapon.splashRadius *= 1.18,
+      },
+      {
+        name: "Pond Portal",
+        text: "Leapfrog damage +8, splash size +10%, and pairs spawn faster.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => {
+          leapfrogWeapon.damage += 8;
+          leapfrogWeapon.splashRadius *= 1.1;
+          leapfrogWeapon.cooldown = Math.max(2.1, leapfrogWeapon.cooldown * 0.9);
         },
       },
       {
@@ -3000,6 +3062,7 @@
         + (skyLaser.unlocked ? 1 : 0)
         + (landMine.unlocked ? 1 : 0)
         + (explodingLily.unlocked ? 1 : 0)
+        + (leapfrogWeapon.unlocked ? 1 : 0)
         + (tadpoleWeapon.unlocked ? 1 : 0)
         + (tongueWeapon.unlocked ? 1 : 0)
         + (puddleWeapon.unlocked ? 1 : 0)
@@ -3037,6 +3100,7 @@
       ui.skyPill.hidden = !skyLaser.unlocked;
       ui.minePill.hidden = !landMine.unlocked;
       ui.lilyPill.hidden = !explodingLily.unlocked;
+      ui.leapfrogPill.hidden = !leapfrogWeapon.unlocked;
       ui.tadpolePill.hidden = !tadpoleWeapon.unlocked;
       ui.tonguePill.hidden = !tongueWeapon.unlocked;
       ui.puddlePill.hidden = !puddleWeapon.unlocked;
@@ -3070,6 +3134,7 @@
       ui.sky.textContent = skyLaser.unlocked ? skyLaser.level : "-";
       ui.mine.textContent = landMine.unlocked ? landMine.level : "-";
       ui.lily.textContent = explodingLily.unlocked ? explodingLily.level : "-";
+      ui.leapfrog.textContent = leapfrogWeapon.unlocked ? leapfrogWeapon.level : "-";
       ui.tadpole.textContent = tadpoleWeapon.unlocked ? tadpoleWeapon.level : "-";
       ui.tongue.textContent = tongueWeapon.unlocked ? tongueWeapon.level : "-";
       ui.puddle.textContent = puddleWeapon.unlocked ? puddleWeapon.level : "-";
@@ -4413,6 +4478,109 @@
       }
     }
 
+    function spawnLeapfrogPair() {
+      if (!leapfrogWeapon.unlocked) return;
+      if (leapfrogPairs.length >= leapfrogWeapon.maxPairs) leapfrogPairs.shift();
+      const colors = [
+        { fill: "#54cf75", stroke: "#146b34" },
+        { fill: "#ff88c8", stroke: "#9d236f" },
+        { fill: "#a977ff", stroke: "#5421a5" },
+        { fill: "#f4d84f", stroke: "#9b7220" },
+        { fill: "#6dd7ff", stroke: "#1f789f" },
+      ];
+      const color = colors[leapfrogPairs.length % colors.length];
+      const a = randomScreenPosition(125);
+      let b = randomScreenPosition(125);
+      let tries = 0;
+      while (distanceSq(a, b) < 260 * 260 && tries < 12) {
+        b = randomScreenPosition(125);
+        tries += 1;
+      }
+      leapfrogPairs.push({
+        pads: [
+          { x: a.x, y: a.y },
+          { x: b.x, y: b.y },
+        ],
+        color,
+        radius: leapfrogWeapon.radius,
+        damage: leapfrogWeapon.damage,
+        splashRadius: leapfrogWeapon.splashRadius,
+        life: leapfrogWeapon.duration,
+        cooldown: 0,
+        pulse: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function startLeapfrogJump(pair, fromIndex) {
+      const target = pair.pads[1 - fromIndex];
+      const distanceToTarget = distance(player, target);
+      player.leap = {
+        startX: player.x,
+        startY: player.y,
+        endX: target.x,
+        endY: target.y,
+        time: 0,
+        duration: clamp(distanceToTarget / 720, 0.28, 0.58),
+        damage: pair.damage,
+        splashRadius: pair.splashRadius,
+        color: pair.color.fill,
+        hitIds: new Set(),
+      };
+      pair.cooldown = 0.85;
+    }
+
+    function splashLeapfrog(enemy, leap) {
+      explosions.push({
+        x: enemy.x,
+        y: enemy.y,
+        radius: leap.splashRadius,
+        life: 0.28,
+        maxLife: 0.28,
+        color: leap.color,
+      });
+
+      for (const target of nearbyEnemies(enemy.x, enemy.y, leap.splashRadius + 34)) {
+        if (target.dead || leap.hitIds.has(target.id)) continue;
+        const hitRange = leap.splashRadius + target.radius;
+        if (distanceSq(enemy, target) < hitRange * hitRange) {
+          damageEnemy(target, leap.damage * 0.55);
+          leap.hitIds.add(target.id);
+          floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(leap.damage * 0.55), life: 0.34 });
+          if (target.hp <= 0) killEnemy(target);
+        }
+      }
+    }
+
+    function updateLeapfrogJump(dt) {
+      if (!player.leap) return false;
+      const leap = player.leap;
+      leap.time += dt;
+      const t = clamp(leap.time / leap.duration, 0, 1);
+      const eased = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+      const arc = Math.sin(t * Math.PI) * 42;
+      player.x = leap.startX + (leap.endX - leap.startX) * eased;
+      player.y = leap.startY + (leap.endY - leap.startY) * eased - arc;
+
+      for (const enemy of nearbyEnemies(player.x, player.y, player.radius + leap.splashRadius + 34)) {
+        if (enemy.dead || leap.hitIds.has(enemy.id)) continue;
+        const hitRange = player.radius + enemy.radius + 6;
+        if (distanceSq(player, enemy) < hitRange * hitRange) {
+          damageEnemy(enemy, leap.damage);
+          leap.hitIds.add(enemy.id);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(leap.damage), life: 0.42 });
+          splashLeapfrog(enemy, leap);
+          if (enemy.hp <= 0) killEnemy(enemy);
+        }
+      }
+
+      if (t >= 1) {
+        player.x = leap.endX;
+        player.y = leap.endY;
+        player.leap = null;
+      }
+      return true;
+    }
+
     function splashTadpole(tadpole) {
       explosions.push({
         x: tadpole.x,
@@ -4573,6 +4741,7 @@
             if (upgrade.weapon === "sky") skyLaser.level += 1;
             if (upgrade.weapon === "mine") landMine.level += 1;
             if (upgrade.weapon === "lily") explodingLily.level += 1;
+            if (upgrade.weapon === "leapfrog") leapfrogWeapon.level += 1;
             if (upgrade.weapon === "tadpole") tadpoleWeapon.level += 1;
             if (upgrade.weapon === "tongue") tongueWeapon.level += 1;
             if (upgrade.weapon === "puddle") puddleWeapon.level += 1;
@@ -4639,6 +4808,7 @@
       reactorWeapon.timer -= dt;
       ancientBook.timer -= dt;
       explodingLily.timer -= dt;
+      leapfrogWeapon.timer -= dt;
       healingPotion.timer -= dt;
       potionBuff.damageTime = Math.max(0, potionBuff.damageTime - dt);
       potionBuff.fireTime = Math.max(0, potionBuff.fireTime - dt);
@@ -4658,8 +4828,9 @@
         player.poisonDelay = 0;
       }
 
+      const jumping = updateLeapfrogJump(dt);
       const move = getMoveVector();
-      if (move.moving) {
+      if (!jumping && move.moving) {
         let playerSlow = 0;
         for (const puddle of puddles) {
           if (puddle.affectsPlayer && distanceSq(player, puddle) < (puddle.radius + player.radius) ** 2) {
@@ -4745,6 +4916,11 @@
       if (explodingLily.unlocked && explodingLily.timer <= 0) {
         spawnExplodingLily();
         explodingLily.timer = explodingLily.cooldown;
+      }
+
+      if (leapfrogWeapon.unlocked && leapfrogWeapon.timer <= 0) {
+        spawnLeapfrogPair();
+        leapfrogWeapon.timer = leapfrogWeapon.cooldown;
       }
 
       if (tadpoleWeapon.unlocked && tadpoleWeapon.timer <= 0) {
@@ -5325,6 +5501,24 @@
         if (lily.life <= 0) explodingLilies.splice(i, 1);
       }
 
+      for (let i = leapfrogPairs.length - 1; i >= 0; i -= 1) {
+        const pair = leapfrogPairs[i];
+        pair.life -= dt;
+        pair.cooldown = Math.max(0, pair.cooldown - dt);
+        pair.pulse += dt * 4.2;
+        if (!player.leap && pair.cooldown <= 0) {
+          for (let padIndex = 0; padIndex < pair.pads.length; padIndex += 1) {
+            const pad = pair.pads[padIndex];
+            const touchRange = player.radius + pair.radius * 0.82;
+            if (distanceSq(player, pad) < touchRange * touchRange) {
+              startLeapfrogJump(pair, padIndex);
+              break;
+            }
+          }
+        }
+        if (pair.life <= 0) leapfrogPairs.splice(i, 1);
+      }
+
       for (let i = asteroids.length - 1; i >= 0; i -= 1) {
         const asteroid = asteroids[i];
         asteroid.life -= dt;
@@ -5564,7 +5758,7 @@
         }
 
         const touchRange = player.radius + enemy.radius;
-        if (distanceSq(player, enemy) < touchRange * touchRange && player.hurtTimer <= 0) {
+        if (!player.leap && distanceSq(player, enemy) < touchRange * touchRange && player.hurtTimer <= 0) {
           const damage = enemy.damage * playerDamageMultiplier();
           player.hp -= damage;
           player.hurtTimer = 0.55;
@@ -5644,7 +5838,7 @@
         .filter((id) => supportBoosts[id].unlocked)
         .map((id) => `${id} ${supportBoosts[id].level}`)
         .join(" - ");
-      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Lily ${explodingLily.unlocked ? explodingLily.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Rocks ${rockWeapon.unlocked ? rockWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
+      ui.runSummary.textContent = `${difficultyName()}${world.masteryMode ? " Mastery" : ""} - Level ${player.level} - ${player.kills} kills - Crossbow ${crossbow.level} - Wand ${wand.unlocked ? wand.level : 0} - Sword ${sword.unlocked ? sword.level : 0} - Belt ${asteroidBelt.unlocked ? asteroidBelt.level : 0} - Orb ${lightningOrb.unlocked ? lightningOrb.level : 0} - Ring ${energyRing.unlocked ? energyRing.level : 0} - Sky ${skyLaser.unlocked ? skyLaser.level : 0} - Mine ${landMine.unlocked ? landMine.level : 0} - Lily ${explodingLily.unlocked ? explodingLily.level : 0} - Leap ${leapfrogWeapon.unlocked ? leapfrogWeapon.level : 0} - Tadpoles ${tadpoleWeapon.unlocked ? tadpoleWeapon.level : 0} - Tongue ${tongueWeapon.unlocked ? tongueWeapon.level : 0} - Puddles ${puddleWeapon.unlocked ? puddleWeapon.level : 0} - Rain ${rainWeapon.unlocked ? rainWeapon.level : 0} - Bananas ${bananaWeapon.unlocked ? bananaWeapon.level : 0} - Shock ${shockWaveWeapon.unlocked ? shockWaveWeapon.level : 0} - Rocks ${rockWeapon.unlocked ? rockWeapon.level : 0} - Fire ${fireballWeapon.unlocked ? fireballWeapon.level : 0} - Ice ${icicleWeapon.unlocked ? icicleWeapon.level : 0} - Bubble ${bubbleWeapon.unlocked ? bubbleWeapon.level : 0} - Splash ${splashWeapon.unlocked ? splashWeapon.level : 0} - Twigs ${twigWeapon.unlocked ? twigWeapon.level : 0} - Snow ${snowballWeapon.unlocked ? snowballWeapon.level : 0} - Bomb ${bombWeapon.unlocked ? bombWeapon.level : 0} - Reactor ${reactorWeapon.unlocked ? reactorWeapon.level : 0} - Book ${ancientBook.unlocked ? ancientBook.level : 0} - Potion ${healingPotion.unlocked ? healingPotion.level : 0}${boostSummary ? ` - Boosts: ${boostSummary}` : ""}`;
       const score = {
         difficultyId: world.difficultyId,
         level: player.level,
@@ -5756,6 +5950,7 @@
       player.poisonTime = 0;
       player.poisonDamage = 0;
       player.poisonDelay = 0;
+      player.leap = null;
       player.level = 1;
       player.xp = 0;
       player.xpNeeded = 8;
@@ -5838,6 +6033,16 @@
       explodingLily.timer = 0;
       explodingLily.duration = 18;
       explodingLily.maxLilies = 5;
+
+      leapfrogWeapon.unlocked = false;
+      leapfrogWeapon.level = 0;
+      leapfrogWeapon.damage = 42;
+      leapfrogWeapon.splashRadius = 56;
+      leapfrogWeapon.cooldown = 7.2;
+      leapfrogWeapon.timer = 0;
+      leapfrogWeapon.radius = 26;
+      leapfrogWeapon.duration = 24;
+      leapfrogWeapon.maxPairs = 4;
 
       tadpoleWeapon.unlocked = false;
       tadpoleWeapon.level = 0;
@@ -6042,6 +6247,7 @@
       skyLasers.length = 0;
       mines.length = 0;
       explodingLilies.length = 0;
+      leapfrogPairs.length = 0;
       explosions.length = 0;
       gems.length = 0;
       hearts.length = 0;
@@ -7630,6 +7836,54 @@
     }
 
     function drawMines() {
+      for (const pair of leapfrogPairs) {
+        const alpha = clamp(pair.life / 1.2, 0, 1);
+        for (let i = 0; i < pair.pads.length; i += 1) {
+          const pad = pair.pads[i];
+          const x = screenX(pad.x);
+          const y = screenY(pad.y);
+          const pulse = Math.sin(pair.pulse + i * Math.PI) * pair.radius * 0.05;
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(x, y);
+          ctx.rotate((i === 0 ? -0.25 : 0.25) + Math.sin(pair.pulse * 0.35) * 0.08);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+          ctx.beginPath();
+          ctx.ellipse(0, pair.radius * 0.58, pair.radius * 1.05, pair.radius * 0.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = pair.color.fill;
+          ctx.strokeStyle = pair.color.stroke;
+          ctx.lineWidth = Math.max(3, pair.radius * 0.13);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, pair.radius * 1.18 + pulse, pair.radius * 0.72 + pulse * 0.35, -0.12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.58)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, pair.radius * 0.62, i === 0 ? 0.1 : Math.PI + 0.1, i === 0 ? Math.PI * 0.88 : Math.PI * 1.88);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        const a = pair.pads[0];
+        const b = pair.pads[1];
+        ctx.save();
+        ctx.globalAlpha = 0.18 * alpha;
+        ctx.strokeStyle = pair.color.fill;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 14]);
+        ctx.lineDashOffset = -world.time * 40;
+        ctx.beginPath();
+        ctx.moveTo(screenX(a.x), screenY(a.y));
+        ctx.lineTo(screenX(b.x), screenY(b.y));
+        ctx.stroke();
+        ctx.restore();
+      }
+
       for (const lily of explodingLilies) {
         const x = screenX(lily.x);
         const y = screenY(lily.y);
