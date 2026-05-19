@@ -5512,6 +5512,7 @@
             const touchRange = player.radius + pair.radius * 0.82;
             if (distanceSq(player, pad) < touchRange * touchRange) {
               startLeapfrogJump(pair, padIndex);
+              leapfrogPairs.splice(i, 1);
               break;
             }
           }
