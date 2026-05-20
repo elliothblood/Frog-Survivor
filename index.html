@@ -802,6 +802,7 @@
       level: 0,
       damage: 42,
       splashRadius: 56,
+      knockback: 96,
       cooldown: 7.2,
       timer: 0,
       radius: 26,
@@ -1845,13 +1846,31 @@
         apply: () => leapfrogWeapon.splashRadius *= 1.18,
       },
       {
+        name: "Spring Legs",
+        text: "Leapfrog landing knockback +34.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => leapfrogWeapon.knockback += 34,
+      },
+      {
+        name: "Launch Pad",
+        text: "Leapfrog landing knockback +55 and splash size +8%.",
+        weapon: "leapfrog",
+        available: () => leapfrogWeapon.unlocked,
+        apply: () => {
+          leapfrogWeapon.knockback += 55;
+          leapfrogWeapon.splashRadius *= 1.08;
+        },
+      },
+      {
         name: "Pond Portal",
-        text: "Leapfrog damage +8, splash size +10%, and pairs spawn faster.",
+        text: "Leapfrog damage +8, splash size +10%, knockback +20, and pairs spawn faster.",
         weapon: "leapfrog",
         available: () => leapfrogWeapon.unlocked,
         apply: () => {
           leapfrogWeapon.damage += 8;
           leapfrogWeapon.splashRadius *= 1.1;
+          leapfrogWeapon.knockback += 20;
           leapfrogWeapon.cooldown = Math.max(2.1, leapfrogWeapon.cooldown * 0.9);
         },
       },
@@ -4505,6 +4524,7 @@
         radius: leapfrogWeapon.radius,
         damage: leapfrogWeapon.damage,
         splashRadius: leapfrogWeapon.splashRadius,
+        knockback: leapfrogWeapon.knockback,
         life: leapfrogWeapon.duration,
         cooldown: 0,
         pulse: Math.random() * Math.PI * 2,
@@ -4523,6 +4543,7 @@
         duration: clamp(distanceToTarget / 720, 0.28, 0.58),
         damage: pair.damage,
         splashRadius: pair.splashRadius,
+        knockback: pair.knockback,
         color: pair.color.fill,
         hitIds: new Set(),
       };
@@ -4547,6 +4568,28 @@
           leap.hitIds.add(target.id);
           floatText.push({ x: target.x, y: target.y - target.radius, text: Math.round(leap.damage * 0.55), life: 0.34 });
           if (target.hp <= 0) killEnemy(target);
+        }
+      }
+    }
+
+    function leapfrogLandingBurst(leap) {
+      explosions.push({
+        x: leap.endX,
+        y: leap.endY,
+        radius: leap.splashRadius * 1.25,
+        life: 0.3,
+        maxLife: 0.3,
+        color: leap.color,
+      });
+
+      for (const enemy of nearbyEnemies(leap.endX, leap.endY, leap.splashRadius * 1.6 + 40)) {
+        if (enemy.dead) continue;
+        const hitRange = leap.splashRadius * 1.45 + enemy.radius;
+        if (distanceSq(enemy, { x: leap.endX, y: leap.endY }) < hitRange * hitRange) {
+          const angle = Math.atan2(enemy.y - leap.endY, enemy.x - leap.endX);
+          enemy.x = clamp(enemy.x + Math.cos(angle) * leap.knockback, enemy.radius, world.width - enemy.radius);
+          enemy.y = clamp(enemy.y + Math.sin(angle) * leap.knockback, enemy.radius, world.height - enemy.radius);
+          floatText.push({ x: enemy.x, y: enemy.y - enemy.radius - 8, text: "KNOCK", life: 0.36 });
         }
       }
     }
@@ -4576,6 +4619,7 @@
       if (t >= 1) {
         player.x = leap.endX;
         player.y = leap.endY;
+        leapfrogLandingBurst(leap);
         player.leap = null;
       }
       return true;
@@ -6039,6 +6083,7 @@
       leapfrogWeapon.level = 0;
       leapfrogWeapon.damage = 42;
       leapfrogWeapon.splashRadius = 56;
+      leapfrogWeapon.knockback = 96;
       leapfrogWeapon.cooldown = 7.2;
       leapfrogWeapon.timer = 0;
       leapfrogWeapon.radius = 26;
