@@ -491,6 +491,7 @@
         <div class="pill weapon" id="spacePill" hidden><small>Space</small><span id="space">-</span></div>
         <div class="pill weapon" id="bootsPill" hidden><small>Boots</small><span id="boots">-</span></div>
         <div class="pill weapon" id="heartRootPill" hidden><small>Root</small><span id="heartRoot">-</span></div>
+        <div class="pill weapon" id="heartBloomPill" hidden><small>Bloom</small><span id="heartBloom">-</span></div>
         <div class="pill weapon" id="clockPill" hidden><small>Clock</small><span id="clock">-</span></div>
         <div class="pill weapon" id="magnetPill" hidden><small>Magnet</small><span id="magnet">-</span></div>
         <div class="pill weapon" id="criticalPill" hidden><small>Crit</small><span id="critical">-</span></div>
@@ -605,6 +606,7 @@
       space: document.querySelector("#space"),
       boots: document.querySelector("#boots"),
       heartRoot: document.querySelector("#heartRoot"),
+      heartBloom: document.querySelector("#heartBloom"),
       clock: document.querySelector("#clock"),
       magnet: document.querySelector("#magnet"),
       critical: document.querySelector("#critical"),
@@ -639,6 +641,7 @@
       spacePill: document.querySelector("#spacePill"),
       bootsPill: document.querySelector("#bootsPill"),
       heartRootPill: document.querySelector("#heartRootPill"),
+      heartBloomPill: document.querySelector("#heartBloomPill"),
       clockPill: document.querySelector("#clockPill"),
       magnetPill: document.querySelector("#magnetPill"),
       criticalPill: document.querySelector("#criticalPill"),
@@ -1020,6 +1023,7 @@
       space: { unlocked: false, level: 0 },
       boots: { unlocked: false, level: 0 },
       heartRoot: { unlocked: false, level: 0 },
+      heartBloom: { unlocked: false, level: 0 },
       clock: { unlocked: false, level: 0 },
       magnet: { unlocked: false, level: 0 },
       critical: { unlocked: false, level: 0 },
@@ -1032,6 +1036,9 @@
       fireRate: 1,
       magnetRange: 1,
       critChance: 0,
+      heartSpawnRate: 1,
+      heartHeal: 1,
+      heartMaxChance: 0,
     };
 
     const enemies = [];
@@ -1223,6 +1230,12 @@
       boostStats.critChance = Math.min(0.45, boostStats.critChance + amount);
     }
 
+    function boostHearts(spawnMultiplier, healMultiplier, maxChance) {
+      boostStats.heartSpawnRate *= spawnMultiplier;
+      boostStats.heartHeal *= healMultiplier;
+      boostStats.heartMaxChance = Math.min(0.45, boostStats.heartMaxChance + maxChance);
+    }
+
     function difficultyName(id = world.difficultyId) {
       const option = difficultyOptions.find((difficulty) => difficulty.id === id);
       return option ? option.name : "Normal Swamp";
@@ -1345,17 +1358,17 @@
       },
       {
         name: "Sharpened Bolts",
-        text: "Crossbow damage +10.",
+        text: "Crossbow damage +12%.",
         weapon: "crossbow",
-        apply: () => crossbow.damage += 10,
+        apply: () => crossbow.damage *= 1.12,
       },
       {
         name: "Broadhead Arrows",
-        text: "Arrow size +25% and damage +4.",
+        text: "Arrow size +25% and damage +6%.",
         weapon: "crossbow",
         apply: () => {
           crossbow.size += 0.25;
-          crossbow.damage += 4;
+          crossbow.damage *= 1.06;
         },
       },
       {
@@ -1381,10 +1394,10 @@
       },
       {
         name: "Heavy Limbs",
-        text: "Damage +8, size +15%, firing speed +8%.",
+        text: "Damage +10%, size +15%, firing speed +8%.",
         weapon: "crossbow",
         apply: () => {
-          crossbow.damage += 8;
+          crossbow.damage *= 1.1;
           crossbow.size += 0.15;
           crossbow.cooldown = Math.max(0.22, crossbow.cooldown * 0.92);
         },
@@ -1418,10 +1431,10 @@
       },
       {
         name: "Bright Focus",
-        text: "Magic wand laser damage +5.",
+        text: "Magic wand laser damage +8%.",
         weapon: "wand",
         available: () => wand.unlocked,
-        apply: () => wand.damage += 5,
+        apply: () => wand.damage *= 1.08,
       },
       {
         name: "Fast Casting",
@@ -1439,11 +1452,11 @@
       },
       {
         name: "Prismatic Casting",
-        text: "Wand damage +3, fire rate +10%, and ricochet +1.",
+        text: "Wand damage +5%, fire rate +10%, and ricochet +1.",
         weapon: "wand",
         available: () => wand.unlocked,
         apply: () => {
-          wand.damage += 3;
+          wand.damage *= 1.05;
           wand.cooldown = Math.max(0.16, wand.cooldown * 0.9);
           wand.ricochet += 1;
         },
@@ -1462,10 +1475,10 @@
       },
       {
         name: "Honed Edge",
-        text: "Sword damage +18.",
+        text: "Sword damage +16%.",
         weapon: "sword",
         available: () => sword.unlocked,
-        apply: () => sword.damage += 18,
+        apply: () => sword.damage *= 1.16,
       },
       {
         name: "Longblade",
@@ -1493,11 +1506,11 @@
       },
       {
         name: "Cleaving Tempo",
-        text: "Sword damage +12, size +12%, and fire rate +14%.",
+        text: "Sword damage +12%, size +12%, and fire rate +14%.",
         weapon: "sword",
         available: () => sword.unlocked,
         apply: () => {
-          sword.damage += 12;
+          sword.damage *= 1.12;
           sword.range += 7;
           sword.arc = Math.min(Math.PI * 0.9, sword.arc + 0.05);
           sword.cooldown = Math.max(0.28, sword.cooldown * 0.86);
@@ -1517,10 +1530,10 @@
       },
       {
         name: "Meteorite Core",
-        text: "Asteroid damage +8.",
+        text: "Asteroid damage +10%.",
         weapon: "asteroid",
         available: () => asteroidBelt.unlocked,
-        apply: () => asteroidBelt.damage += 8,
+        apply: () => asteroidBelt.damage *= 1.1,
       },
       {
         name: "Wider Orbit",
@@ -1553,12 +1566,12 @@
       },
       {
         name: "Dense Belt",
-        text: "Asteroid size +12%, damage +5, and duration +0.8s.",
+        text: "Asteroid size +12%, damage +8%, and duration +0.8s.",
         weapon: "asteroid",
         available: () => asteroidBelt.unlocked,
         apply: () => {
           asteroidBelt.size *= 1.12;
-          asteroidBelt.damage += 5;
+          asteroidBelt.damage *= 1.08;
           asteroidBelt.duration += 0.8;
         },
       },
@@ -1577,10 +1590,10 @@
       },
       {
         name: "Charged Core",
-        text: "Lightning orb damage +18.",
+        text: "Lightning orb damage +16%.",
         weapon: "lightning",
         available: () => lightningOrb.unlocked,
-        apply: () => lightningOrb.damage += 18,
+        apply: () => lightningOrb.damage *= 1.16,
       },
       {
         name: "Storm Swell",
@@ -1622,21 +1635,21 @@
       },
       {
         name: "Static Overload",
-        text: "Lightning orb damage +12 and size +8%.",
+        text: "Lightning orb damage +12% and size +8%.",
         weapon: "lightning",
         available: () => lightningOrb.unlocked,
         apply: () => {
-          lightningOrb.damage += 12;
+          lightningOrb.damage *= 1.12;
           lightningOrb.size *= 1.08;
         },
       },
       {
         name: "Thunderhead",
-        text: "Lightning orb damage +10, size +10%, and speed +10%.",
+        text: "Lightning orb damage +10%, size +10%, and speed +10%.",
         weapon: "lightning",
         available: () => lightningOrb.unlocked,
         apply: () => {
-          lightningOrb.damage += 10;
+          lightningOrb.damage *= 1.1;
           lightningOrb.size *= 1.1;
           lightningOrb.speed *= 1.1;
         },
@@ -1662,19 +1675,19 @@
       },
       {
         name: "Charged Boundary",
-        text: "Energy ring damage +8.",
+        text: "Energy ring damage +10%.",
         weapon: "ring",
         available: () => energyRing.unlocked,
-        apply: () => energyRing.damage += 8,
+        apply: () => energyRing.damage *= 1.1,
       },
       {
         name: "Widened Current",
-        text: "Energy ring size +10% and damage +4.",
+        text: "Energy ring size +10% and damage +6%.",
         weapon: "ring",
         available: () => energyRing.unlocked,
         apply: () => {
           energyRing.radius *= 1.1;
-          energyRing.damage += 4;
+          energyRing.damage *= 1.06;
         },
       },
       {
@@ -1691,10 +1704,10 @@
       },
       {
         name: "Focused Sunbeam",
-        text: "Sky laser damage +5.",
+        text: "Sky laser damage +8%.",
         weapon: "sky",
         available: () => skyLaser.unlocked,
-        apply: () => skyLaser.damage += 5,
+        apply: () => skyLaser.damage *= 1.08,
       },
       {
         name: "Split the Sky",
@@ -1708,11 +1721,11 @@
       },
       {
         name: "Solar Array",
-        text: "Sky laser damage +3 and one additional laser.",
+        text: "Sky laser damage +5% and one additional laser.",
         weapon: "sky",
         available: () => skyLaser.unlocked,
         apply: () => {
-          skyLaser.damage += 3;
+          skyLaser.damage *= 1.05;
           skyLaser.count += 1;
           syncSkyLasers();
         },
@@ -1731,10 +1744,10 @@
       },
       {
         name: "Packed Powder",
-        text: "Land mine damage +22.",
+        text: "Land mine damage +18%.",
         weapon: "mine",
         available: () => landMine.unlocked,
-        apply: () => landMine.damage += 22,
+        apply: () => landMine.damage *= 1.18,
       },
       {
         name: "Wide Blast",
@@ -1752,11 +1765,11 @@
       },
       {
         name: "Heavy Charges",
-        text: "Land mine damage +12, size +10%, and one extra mine.",
+        text: "Land mine damage +12%, size +10%, and one extra mine.",
         weapon: "mine",
         available: () => landMine.unlocked,
         apply: () => {
-          landMine.damage += 12;
+          landMine.damage *= 1.12;
           landMine.size *= 1.1;
           landMine.count += 1;
         },
@@ -1782,10 +1795,10 @@
       },
       {
         name: "Hotter Petals",
-        text: "Exploding lily base damage +18.",
+        text: "Exploding lily base damage +16%.",
         weapon: "lily",
         available: () => explodingLily.unlocked,
-        apply: () => explodingLily.damage += 18,
+        apply: () => explodingLily.damage *= 1.16,
       },
       {
         name: "Wide Pad",
@@ -1803,11 +1816,11 @@
       },
       {
         name: "Volcanic Lily",
-        text: "Exploding lily damage +8, size +10%, and stronger charging.",
+        text: "Exploding lily damage +10%, size +10%, and stronger charging.",
         weapon: "lily",
         available: () => explodingLily.unlocked,
         apply: () => {
-          explodingLily.damage += 8;
+          explodingLily.damage *= 1.1;
           explodingLily.radius *= 1.1;
           explodingLily.chargePower += 0.2;
         },
@@ -1833,10 +1846,10 @@
       },
       {
         name: "Belly Flop",
-        text: "Leapfrog jump damage +15.",
+        text: "Leapfrog jump damage +14%.",
         weapon: "leapfrog",
         available: () => leapfrogWeapon.unlocked,
-        apply: () => leapfrogWeapon.damage += 15,
+        apply: () => leapfrogWeapon.damage *= 1.14,
       },
       {
         name: "Big Splash",
@@ -1864,11 +1877,11 @@
       },
       {
         name: "Pond Portal",
-        text: "Leapfrog damage +8, splash size +10%, knockback +20, and pairs spawn faster.",
+        text: "Leapfrog damage +10%, splash size +10%, knockback +20, and pairs spawn faster.",
         weapon: "leapfrog",
         available: () => leapfrogWeapon.unlocked,
         apply: () => {
-          leapfrogWeapon.damage += 8;
+          leapfrogWeapon.damage *= 1.1;
           leapfrogWeapon.splashRadius *= 1.1;
           leapfrogWeapon.knockback += 20;
           leapfrogWeapon.cooldown = Math.max(2.1, leapfrogWeapon.cooldown * 0.9);
@@ -1895,10 +1908,10 @@
       },
       {
         name: "Hungry Tadpoles",
-        text: "Tadpole damage +9.",
+        text: "Tadpole damage +11%.",
         weapon: "tadpole",
         available: () => tadpoleWeapon.unlocked,
-        apply: () => tadpoleWeapon.damage += 9,
+        apply: () => tadpoleWeapon.damage *= 1.11,
       },
       {
         name: "Swift Swimmers",
@@ -1923,11 +1936,11 @@
       },
       {
         name: "Pond School",
-        text: "Tadpole damage +5, speed +12%, and one extra tadpole.",
+        text: "Tadpole damage +8%, speed +12%, and one extra tadpole.",
         weapon: "tadpole",
         available: () => tadpoleWeapon.unlocked,
         apply: () => {
-          tadpoleWeapon.damage += 5;
+          tadpoleWeapon.damage *= 1.08;
           tadpoleWeapon.speed *= 1.12;
           tadpoleWeapon.count += 1;
         },
@@ -1946,10 +1959,10 @@
       },
       {
         name: "Sticky Snap",
-        text: "Frog tongue damage +5.",
+        text: "Frog tongue damage +8%.",
         weapon: "tongue",
         available: () => tongueWeapon.unlocked,
-        apply: () => tongueWeapon.damage += 5,
+        apply: () => tongueWeapon.damage *= 1.08,
       },
       {
         name: "Longer Latch",
@@ -1967,11 +1980,11 @@
       },
       {
         name: "Crimson Grip",
-        text: "Frog tongue damage +3 and duration +0.7 seconds.",
+        text: "Frog tongue damage +5% and duration +0.7 seconds.",
         weapon: "tongue",
         available: () => tongueWeapon.unlocked,
         apply: () => {
-          tongueWeapon.damage += 3;
+          tongueWeapon.damage *= 1.05;
           tongueWeapon.duration += 0.7;
         },
       },
@@ -1989,10 +2002,10 @@
       },
       {
         name: "Murky Water",
-        text: "Puddle damage +4.",
+        text: "Puddle damage +6%.",
         weapon: "puddle",
         available: () => puddleWeapon.unlocked,
-        apply: () => puddleWeapon.damage += 4,
+        apply: () => puddleWeapon.damage *= 1.06,
       },
       {
         name: "Wider Puddles",
@@ -2017,11 +2030,11 @@
       },
       {
         name: "Bog Trail",
-        text: "Puddle damage +3, size +10%, and slow +5%.",
+        text: "Puddle damage +5%, size +10%, and slow +5%.",
         weapon: "puddle",
         available: () => puddleWeapon.unlocked,
         apply: () => {
-          puddleWeapon.damage += 3;
+          puddleWeapon.damage *= 1.05;
           puddleWeapon.radius *= 1.1;
           puddleWeapon.slow = Math.min(0.62, puddleWeapon.slow + 0.05);
         },
@@ -2041,10 +2054,10 @@
       },
       {
         name: "Heavy Rain",
-        text: "Rain damage +6.",
+        text: "Rain damage +9%.",
         weapon: "rain",
         available: () => rainWeapon.unlocked,
-        apply: () => rainWeapon.damage += 6,
+        apply: () => rainWeapon.damage *= 1.09,
       },
       {
         name: "Wider Splash",
@@ -2076,11 +2089,11 @@
       },
       {
         name: "Storm Front",
-        text: "Rain damage +3, splash size +10%, and one extra raindrop.",
+        text: "Rain damage +5%, splash size +10%, and one extra raindrop.",
         weapon: "rain",
         available: () => rainWeapon.unlocked,
         apply: () => {
-          rainWeapon.damage += 3;
+          rainWeapon.damage *= 1.05;
           rainWeapon.splashRadius *= 1.1;
           rainWeapon.count += 1;
         },
@@ -2099,10 +2112,10 @@
       },
       {
         name: "Ripe Throw",
-        text: "Banana damage +10.",
+        text: "Banana damage +12%.",
         weapon: "banana",
         available: () => bananaWeapon.unlocked,
-        apply: () => bananaWeapon.damage += 10,
+        apply: () => bananaWeapon.damage *= 1.12,
       },
       {
         name: "Big Bunch",
@@ -2127,11 +2140,11 @@
       },
       {
         name: "Wild Bunch",
-        text: "Banana damage +5, size +10%, and one extra banana.",
+        text: "Banana damage +8%, size +10%, and one extra banana.",
         weapon: "banana",
         available: () => bananaWeapon.unlocked,
         apply: () => {
-          bananaWeapon.damage += 5;
+          bananaWeapon.damage *= 1.08;
           bananaWeapon.size *= 1.1;
           bananaWeapon.count += 1;
         },
@@ -2150,10 +2163,10 @@
       },
       {
         name: "Louder Boom",
-        text: "Shock wave damage +8.",
+        text: "Shock wave damage +10%.",
         weapon: "shock",
         available: () => shockWaveWeapon.unlocked,
-        apply: () => shockWaveWeapon.damage += 8,
+        apply: () => shockWaveWeapon.damage *= 1.1,
       },
       {
         name: "Wider Wave",
@@ -2178,11 +2191,11 @@
       },
       {
         name: "Rolling Thunder",
-        text: "Shock wave damage +4, size +10%, and one extra wave.",
+        text: "Shock wave damage +6%, size +10%, and one extra wave.",
         weapon: "shock",
         available: () => shockWaveWeapon.unlocked,
         apply: () => {
-          shockWaveWeapon.damage += 4;
+          shockWaveWeapon.damage *= 1.06;
           shockWaveWeapon.size *= 1.1;
           shockWaveWeapon.count += 1;
         },
@@ -2211,10 +2224,10 @@
       },
       {
         name: "Hard Stones",
-        text: "Rock damage +9.",
+        text: "Rock damage +11%.",
         weapon: "rock",
         available: () => rockWeapon.unlocked,
-        apply: () => rockWeapon.damage += 9,
+        apply: () => rockWeapon.damage *= 1.11,
       },
       {
         name: "Pebble Storm",
@@ -2235,11 +2248,11 @@
       },
       {
         name: "Boulder Toss",
-        text: "Rock damage +5, size +10%, and knockback +18.",
+        text: "Rock damage +8%, size +10%, and knockback +18.",
         weapon: "rock",
         available: () => rockWeapon.unlocked,
         apply: () => {
-          rockWeapon.damage += 5;
+          rockWeapon.damage *= 1.08;
           rockWeapon.size *= 1.1;
           rockWeapon.knockback += 18;
         },
@@ -2258,12 +2271,12 @@
       },
       {
         name: "Hotter Flames",
-        text: "Fireball splash damage +3 and burn damage +1.",
+        text: "Fireball splash damage +5% and burn damage +6%.",
         weapon: "fireball",
         available: () => fireballWeapon.unlocked,
         apply: () => {
-          fireballWeapon.damage += 3;
-          fireballWeapon.burnDamage += 1;
+          fireballWeapon.damage *= 1.05;
+          fireballWeapon.burnDamage *= 1.06;
         },
       },
       {
@@ -2289,12 +2302,12 @@
       },
       {
         name: "Wildfire",
-        text: "Fireball damage +2, splash size +10%, and one extra fireball.",
+        text: "Fireball damage +4%, splash size +10%, and one extra fireball.",
         weapon: "fireball",
         available: () => fireballWeapon.unlocked,
         apply: () => {
-          fireballWeapon.damage += 2;
-          fireballWeapon.burnDamage += 1;
+          fireballWeapon.damage *= 1.04;
+          fireballWeapon.burnDamage *= 1.06;
           fireballWeapon.splashRadius *= 1.1;
           fireballWeapon.count += 1;
         },
@@ -2313,10 +2326,10 @@
       },
       {
         name: "Sharper Ice",
-        text: "Icicle splash damage +4.",
+        text: "Icicle splash damage +6%.",
         weapon: "icicle",
         available: () => icicleWeapon.unlocked,
-        apply: () => icicleWeapon.damage += 4,
+        apply: () => icicleWeapon.damage *= 1.06,
       },
       {
         name: "Frost Burst",
@@ -2341,11 +2354,11 @@
       },
       {
         name: "Deep Freeze",
-        text: "Icicle damage +2, splash size +10%, and one extra icicle.",
+        text: "Icicle damage +4%, splash size +10%, and one extra icicle.",
         weapon: "icicle",
         available: () => icicleWeapon.unlocked,
         apply: () => {
-          icicleWeapon.damage += 2;
+          icicleWeapon.damage *= 1.04;
           icicleWeapon.splashRadius *= 1.1;
           icicleWeapon.count += 1;
         },
@@ -2371,10 +2384,10 @@
       },
       {
         name: "Stinging Foam",
-        text: "Bubble damage +5.",
+        text: "Bubble damage +8%.",
         weapon: "bubble",
         available: () => bubbleWeapon.unlocked,
-        apply: () => bubbleWeapon.damage += 5,
+        apply: () => bubbleWeapon.damage *= 1.08,
       },
       {
         name: "Quick Suds",
@@ -2406,11 +2419,11 @@
       },
       {
         name: "Foam Burst",
-        text: "Bubble damage +3, size +10%, and one extra bubble.",
+        text: "Bubble damage +5%, size +10%, and one extra bubble.",
         weapon: "bubble",
         available: () => bubbleWeapon.unlocked,
         apply: () => {
-          bubbleWeapon.damage += 3;
+          bubbleWeapon.damage *= 1.05;
           bubbleWeapon.size *= 1.1;
           bubbleWeapon.count += 1;
         },
@@ -2429,10 +2442,10 @@
       },
       {
         name: "Deeper Splash",
-        text: "Splash damage +8.",
+        text: "Splash damage +10%.",
         weapon: "splash",
         available: () => splashWeapon.unlocked,
-        apply: () => splashWeapon.damage += 8,
+        apply: () => splashWeapon.damage *= 1.1,
       },
       {
         name: "Rippling Water",
@@ -2450,11 +2463,11 @@
       },
       {
         name: "Tidal Pulse",
-        text: "Splash damage +4, size +12%, and fire rate +10%.",
+        text: "Splash damage +6%, size +12%, and fire rate +10%.",
         weapon: "splash",
         available: () => splashWeapon.unlocked,
         apply: () => {
-          splashWeapon.damage += 4;
+          splashWeapon.damage *= 1.06;
           splashWeapon.size *= 1.12;
           splashWeapon.cooldown = Math.max(0.5, splashWeapon.cooldown * 0.9);
         },
@@ -2473,10 +2486,10 @@
       },
       {
         name: "Hardwood",
-        text: "Twig and leaf damage +3.",
+        text: "Twig and leaf damage +5%.",
         weapon: "twig",
         available: () => twigWeapon.unlocked,
-        apply: () => twigWeapon.damage += 3,
+        apply: () => twigWeapon.damage *= 1.05,
       },
       {
         name: "Quick Sprout",
@@ -2515,11 +2528,11 @@
       },
       {
         name: "Forest Scatter",
-        text: "Twig damage +2, size +10%, and one extra leaf.",
+        text: "Twig damage +4%, size +10%, and one extra leaf.",
         weapon: "twig",
         available: () => twigWeapon.unlocked,
         apply: () => {
-          twigWeapon.damage += 2;
+          twigWeapon.damage *= 1.04;
           twigWeapon.size *= 1.1;
           twigWeapon.leafCount += 1;
         },
@@ -2555,18 +2568,18 @@
       },
       {
         name: "Heavy Slush",
-        text: "Snowball splash damage +10.",
+        text: "Snowball splash damage +12%.",
         weapon: "snowball",
         available: () => snowballWeapon.unlocked,
-        apply: () => snowballWeapon.damage += 10,
+        apply: () => snowballWeapon.damage *= 1.12,
       },
       {
         name: "Avalanche Pack",
-        text: "Snowball damage +5, size +10%, and spawn rate +10%.",
+        text: "Snowball damage +8%, size +10%, and spawn rate +10%.",
         weapon: "snowball",
         available: () => snowballWeapon.unlocked,
         apply: () => {
-          snowballWeapon.damage += 5;
+          snowballWeapon.damage *= 1.08;
           snowballWeapon.size *= 1.1;
           snowballWeapon.splashRadius *= 1.08;
           snowballWeapon.spawnEvery = Math.max(0.45, snowballWeapon.spawnEvery * 0.9);
@@ -2612,10 +2625,10 @@
       },
       {
         name: "Hotter Core",
-        text: "Reactor splash damage +12.",
+        text: "Reactor splash damage +12%.",
         weapon: "reactor",
         available: () => reactorWeapon.unlocked,
-        apply: () => reactorWeapon.damage += 12,
+        apply: () => reactorWeapon.damage *= 1.12,
       },
       {
         name: "Wider Fallout",
@@ -2633,11 +2646,11 @@
       },
       {
         name: "Unstable Core",
-        text: "Reactor damage +6, splash size +10%, and trigger rate +10%.",
+        text: "Reactor damage +9%, splash size +10%, and trigger rate +10%.",
         weapon: "reactor",
         available: () => reactorWeapon.unlocked,
         apply: () => {
-          reactorWeapon.damage += 6;
+          reactorWeapon.damage *= 1.09;
           reactorWeapon.splashRadius *= 1.1;
           reactorWeapon.cooldown = Math.max(5.5, reactorWeapon.cooldown * 0.9);
         },
@@ -2831,6 +2844,35 @@
         isBoost: true,
         available: () => supportBoosts.heartRoot.unlocked,
         apply: () => boostMaxHealth(35),
+      },
+      {
+        name: "Heart Bloom",
+        text: "A boost weapon. Hearts appear 20% more often, heal 20% more, and can grow max health.",
+        weapon: "heartBloom",
+        unlock: true,
+        isBoost: true,
+        starter: false,
+        available: () => !supportBoosts.heartBloom.unlocked,
+        apply: () => {
+          unlockBoost("heartBloom");
+          boostHearts(1.2, 1.2, 0.08);
+        },
+      },
+      {
+        name: "Sweet Nectar",
+        text: "Heart Bloom makes hearts appear 15% more often and heal 15% more.",
+        weapon: "heartBloom",
+        isBoost: true,
+        available: () => supportBoosts.heartBloom.unlocked,
+        apply: () => boostHearts(1.15, 1.15, 0),
+      },
+      {
+        name: "Living Pulse",
+        text: "Heart Bloom gives hearts +7% chance to increase max health.",
+        weapon: "heartBloom",
+        isBoost: true,
+        available: () => supportBoosts.heartBloom.unlocked,
+        apply: () => boostHearts(1, 1, 0.07),
       },
       {
         name: "Clock Seed",
@@ -3142,6 +3184,7 @@
       ui.spacePill.hidden = !supportBoosts.space.unlocked;
       ui.bootsPill.hidden = !supportBoosts.boots.unlocked;
       ui.heartRootPill.hidden = !supportBoosts.heartRoot.unlocked;
+      ui.heartBloomPill.hidden = !supportBoosts.heartBloom.unlocked;
       ui.clockPill.hidden = !supportBoosts.clock.unlocked;
       ui.magnetPill.hidden = !supportBoosts.magnet.unlocked;
       ui.criticalPill.hidden = !supportBoosts.critical.unlocked;
@@ -3176,6 +3219,7 @@
       ui.space.textContent = supportBoosts.space.unlocked ? supportBoosts.space.level : "-";
       ui.boots.textContent = supportBoosts.boots.unlocked ? supportBoosts.boots.level : "-";
       ui.heartRoot.textContent = supportBoosts.heartRoot.unlocked ? supportBoosts.heartRoot.level : "-";
+      ui.heartBloom.textContent = supportBoosts.heartBloom.unlocked ? supportBoosts.heartBloom.level : "-";
       ui.clock.textContent = supportBoosts.clock.unlocked ? supportBoosts.clock.level : "-";
       ui.magnet.textContent = supportBoosts.magnet.unlocked ? supportBoosts.magnet.level : "-";
       ui.critical.textContent = supportBoosts.critical.unlocked ? supportBoosts.critical.level : "-";
@@ -3569,13 +3613,13 @@
     }
 
     function spawnHeart() {
-      if (hearts.length >= 4 || player.hp >= player.maxHp) return;
+      if (hearts.length >= 4 || (player.hp >= player.maxHp && !supportBoosts.heartBloom.unlocked)) return;
       const pos = randomScreenPosition(120);
       hearts.push({
         x: pos.x,
         y: pos.y,
         radius: 12,
-        heal: 24,
+        heal: 24 * boostStats.heartHeal,
         bob: Math.random() * Math.PI * 2,
       });
     }
@@ -4924,8 +4968,8 @@
       rebuildSpatialGrid();
 
       if (world.heartTimer <= 0) {
-        if (Math.random() < 0.55) spawnHeart();
-        world.heartTimer = 9 + Math.random() * 7;
+        if (Math.random() < Math.min(0.92, 0.55 * Math.sqrt(boostStats.heartSpawnRate))) spawnHeart();
+        world.heartTimer = (9 + Math.random() * 7) / boostStats.heartSpawnRate;
       }
 
       if (crossbow.unlocked && crossbow.timer <= 0) {
@@ -5861,6 +5905,11 @@
             player.poisonDelay = 0;
             floatText.push({ x: player.x, y: player.y - 50, text: "CURED", life: 0.75, heal: true });
           }
+          if (boostStats.heartMaxChance > 0 && Math.random() < boostStats.heartMaxChance) {
+            player.maxHp += 5;
+            player.hp = Math.min(player.maxHp, player.hp + 5);
+            floatText.push({ x: player.x, y: player.y - 68, text: "+MAX", life: 0.75, heal: true });
+          }
           hearts.splice(i, 1);
           updateUi();
         }
@@ -6264,6 +6313,9 @@
       boostStats.fireRate = 1;
       boostStats.magnetRange = 1;
       boostStats.critChance = 0;
+      boostStats.heartSpawnRate = 1;
+      boostStats.heartHeal = 1;
+      boostStats.heartMaxChance = 0;
       for (const id of supportBoostIds) {
         supportBoosts[id].unlocked = false;
         supportBoosts[id].level = 0;
