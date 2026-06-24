@@ -1268,6 +1268,16 @@
         .slice(0, 10);
     }
 
+    function mergeScores(...scoreLists) {
+      const unique = new Map();
+      for (const score of scoreLists.flat()) {
+        if (!score || typeof score.level !== "number" || typeof score.kills !== "number") continue;
+        const key = `${score.name || "Frog"}|${score.level}|${score.kills}|${score.time || 0}|${Boolean(score.mastery)}`;
+        unique.set(key, score);
+      }
+      return sortScores([...unique.values()]);
+    }
+
     function scoreQualifies(score, scores) {
       const sorted = sortScores(scores);
       if (sorted.length < 10) return true;
@@ -1280,7 +1290,9 @@
         try {
           const snapshot = await leaderboardDb.ref(`leaderboards/${difficultyId}`).once("value");
           const value = snapshot.val();
-          const scores = Array.isArray(value) ? value : Object.values(value || {});
+          const remoteScores = Array.isArray(value) ? value : Object.values(value || {});
+          const localScores = loadLeaderboards()[difficultyId] || [];
+          const scores = mergeScores(remoteScores, localScores);
           saveLocalScores(difficultyId, scores);
           return sortScores(scores);
         } catch {
@@ -1292,7 +1304,14 @@
     }
 
     async function writeScoresForDifficulty(difficultyId, scores) {
-      const sorted = sortScores(scores);
+      const sorted = sortScores(scores).map((score) => ({
+        difficultyId,
+        name: String(score.name || "Frog").slice(0, 20),
+        level: score.level,
+        kills: score.kills,
+        time: typeof score.time === "number" ? score.time : Date.now(),
+        mastery: Boolean(score.mastery),
+      }));
       saveLocalScores(difficultyId, sorted);
       if (!leaderboardDb) return;
       try {
