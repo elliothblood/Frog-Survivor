@@ -5905,9 +5905,11 @@
         const heart = hearts[i];
         heart.bob += dt * 4;
         const d = distance(player, heart);
-        if (d < 115) {
+        const heartMagnetRange = 115 * boostStats.magnetRange;
+        const heartSnapRange = 45 * Math.sqrt(boostStats.magnetRange);
+        if (d < heartMagnetRange) {
           const angle = Math.atan2(player.y - heart.y, player.x - heart.x);
-          const pull = d < 45 ? 560 : 220;
+          const pull = d < heartSnapRange ? 560 * Math.sqrt(boostStats.magnetRange) : 220 * Math.sqrt(boostStats.magnetRange);
           heart.x += Math.cos(angle) * pull * dt;
           heart.y += Math.sin(angle) * pull * dt;
         }
