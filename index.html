@@ -974,6 +974,7 @@
       unlocked: false,
       level: 0,
       cooldown: 76,
+      damage: 520,
       timer: 0,
     };
 
@@ -2606,7 +2607,7 @@
       },
       {
         name: "Bomb",
-        text: "Very occasionally clears every enemy on the screen.",
+        text: "Very occasionally blasts every enemy on the screen for massive damage.",
         weapon: "bomb",
         unlock: true,
         available: () => !bombWeapon.unlocked,
@@ -2617,11 +2618,28 @@
         },
       },
       {
+        name: "Bigger Boom",
+        text: "Bomb damage +14%.",
+        weapon: "bomb",
+        available: () => bombWeapon.unlocked,
+        apply: () => bombWeapon.damage *= 1.14,
+      },
+      {
         name: "Shorter Fuse",
         text: "Bomb explodes 18% more often.",
         weapon: "bomb",
         available: () => bombWeapon.unlocked,
         apply: () => bombWeapon.cooldown = Math.max(18, bombWeapon.cooldown * 0.82),
+      },
+      {
+        name: "Powder Keg",
+        text: "Bomb damage +10% and explodes 10% more often.",
+        weapon: "bomb",
+        available: () => bombWeapon.unlocked,
+        apply: () => {
+          bombWeapon.damage *= 1.1;
+          bombWeapon.cooldown = Math.max(18, bombWeapon.cooldown * 0.9);
+        },
       },
       {
         name: "Hot Fuse",
@@ -4416,7 +4434,10 @@
       floatText.push({ x: player.x, y: player.y - 56, text: "BOOM", life: 0.9, danger: true });
 
       for (const enemy of visible) {
-        if (!enemy.dead) killEnemy(enemy);
+        if (enemy.dead) continue;
+        const dealt = damageEnemy(enemy, bombWeapon.damage);
+        floatText.push({ x: enemy.x, y: enemy.y - enemy.radius, text: Math.round(dealt), life: 0.55, danger: true });
+        if (enemy.hp <= 0) killEnemy(enemy);
       }
     }
 
@@ -6294,6 +6315,7 @@
       bombWeapon.unlocked = false;
       bombWeapon.level = 0;
       bombWeapon.cooldown = 76;
+      bombWeapon.damage = 520;
       bombWeapon.timer = 0;
 
       reactorWeapon.unlocked = false;
