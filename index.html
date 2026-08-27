@@ -674,7 +674,7 @@
       spawnTimer: 0,
       spawnEvery: 0.9,
       bossTimer: 55,
-      antTimer: 34,
+      antTimer: 28,
       heartTimer: 7,
       cameraX: 0,
       cameraY: 0,
@@ -5002,7 +5002,7 @@
 
       if (world.antTimer <= 0) {
         spawnAntSwarm();
-        world.antTimer = (95 + Math.random() * 55) * difficultyTuning().antInterval;
+        world.antTimer = (70 + Math.random() * 40) * difficultyTuning().antInterval;
       }
 
       rebuildSpatialGrid();
@@ -5999,7 +5999,7 @@
       world.paused = false;
       world.spawnTimer = 0;
       world.bossTimer = (55 + Math.max(0, 5 - world.difficulty) * 8) * tuning.bossInterval;
-      world.antTimer = (34 + Math.max(0, 5 - world.difficulty) * 6) * tuning.antInterval;
+      world.antTimer = (28 + Math.max(0, 5 - world.difficulty) * 5) * tuning.antInterval;
       const openingEnemies = Math.max(2, Math.round(6 * tuning.softCap));
       for (let i = 0; i < openingEnemies; i += 1) spawnEnemy();
       openUpgradeChoice();
@@ -6067,7 +6067,7 @@
       world.spawnTimer = 0;
       world.spawnEvery = 0.9;
       world.bossTimer = 55;
-      world.antTimer = 34;
+      world.antTimer = 28;
       world.heartTimer = 7;
       world.pendingUpgrades = 0;
       world.pendingChestUpgrades = 0;
