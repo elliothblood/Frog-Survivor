@@ -1097,6 +1097,7 @@
       { id: "nightmare", name: "Nightmare Bog", value: 20 },
       { id: "hardcore", name: "Hardcore", value: 16, hardcore: true },
       { id: "night", name: "Night Time", value: 20, night: true },
+      { id: "boss", name: "Boss Level", value: 5, boss: true },
     ];
 
     const leaderboardKey = "frog-survivor-leaderboards-v1";
@@ -3319,6 +3320,11 @@
       }
       if (world.difficultyId === "night") {
         tuning.spotlight = 0.82;
+      }
+      if (world.difficultyId === "boss") {
+        tuning.spawnInterval = 4;
+        tuning.bossInterval = 0.2;
+        tuning.antInterval = 1;
       }
       return tuning;
     }
