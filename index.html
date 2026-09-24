@@ -1287,22 +1287,41 @@
       return score.level > last.level || (score.level === last.level && score.kills > last.kills);
     }
 
-    async function loadScoresForDifficulty(difficultyId) {
+    function firebaseLeaderboardUrl(difficultyId) {
+      return `${firebaseConfig.databaseURL}/leaderboards/${encodeURIComponent(difficultyId)}.json`;
+    }
+
+    function parseRemoteScores(value) {
+      return Array.isArray(value) ? value : Object.values(value || {});
+    }
+
+    async function loadRemoteScoresForDifficulty(difficultyId) {
       if (leaderboardDb) {
         try {
           const snapshot = await leaderboardDb.ref(`leaderboards/${difficultyId}`).once("value");
-          const value = snapshot.val();
-          const remoteScores = Array.isArray(value) ? value : Object.values(value || {});
-          const localScores = loadLeaderboards()[difficultyId] || [];
-          const scores = mergeScores(remoteScores, localScores);
-          saveLocalScores(difficultyId, scores);
-          return sortScores(scores);
-        } catch {
+          return parseRemoteScores(snapshot.val());
+        } catch (error) {
+          console.warn("Firebase SDK read failed; trying REST fallback.", error);
           leaderboardDb = null;
         }
       }
-      const leaderboards = loadLeaderboards();
-      return sortScores(leaderboards[difficultyId] || []);
+
+      const response = await fetch(firebaseLeaderboardUrl(difficultyId), { cache: "no-store" });
+      if (!response.ok) throw new Error(`Firebase read failed with status ${response.status}.`);
+      return parseRemoteScores(await response.json());
+    }
+
+    async function loadScoresForDifficulty(difficultyId) {
+      const localScores = loadLeaderboards()[difficultyId] || [];
+      try {
+        const remoteScores = await loadRemoteScoresForDifficulty(difficultyId);
+        const scores = mergeScores(remoteScores, localScores);
+        saveLocalScores(difficultyId, scores);
+        return sortScores(scores);
+      } catch (error) {
+        console.warn(`Could not load the ${difficultyId} leaderboard.`, error);
+        return sortScores(localScores);
+      }
     }
 
     async function writeScoresForDifficulty(difficultyId, scores) {
@@ -1315,12 +1334,23 @@
         mastery: Boolean(score.mastery),
       }));
       saveLocalScores(difficultyId, sorted);
-      if (!leaderboardDb) return;
-      try {
-        await leaderboardDb.ref(`leaderboards/${difficultyId}`).set(sorted);
-      } catch {
-        leaderboardDb = null;
+
+      if (leaderboardDb) {
+        try {
+          await leaderboardDb.ref(`leaderboards/${difficultyId}`).set(sorted);
+          return;
+        } catch (error) {
+          console.warn("Firebase SDK write failed; trying REST fallback.", error);
+          leaderboardDb = null;
+        }
       }
+
+      const response = await fetch(firebaseLeaderboardUrl(difficultyId), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sorted),
+      });
+      if (!response.ok) throw new Error(`Firebase write failed with status ${response.status}.`);
     }
 
     async function renderLeaderboard(
@@ -1367,11 +1397,8 @@
       renderLeaderboard(difficultyId);
       ui.restart.focus();
 
-      if (!leaderboardDb) return;
       try {
-        const snapshot = await leaderboardDb.ref(`leaderboards/${difficultyId}`).once("value");
-        const value = snapshot.val();
-        const remoteScores = Array.isArray(value) ? value : Object.values(value || {});
+        const remoteScores = await loadRemoteScoresForDifficulty(difficultyId);
         await writeScoresForDifficulty(difficultyId, mergeScores(remoteScores, optimisticScores));
         renderLeaderboard(difficultyId);
       } catch (error) {
