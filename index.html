@@ -1355,13 +1355,28 @@
     async function savePendingScore(name) {
       if (!pendingScore) return;
       const cleanName = (name || "Frog").trim().slice(0, 20) || "Frog";
-      const scores = await loadScoresForDifficulty(pendingScore.difficultyId);
-      scores.push({ ...pendingScore, name: cleanName, time: Date.now() });
-      await writeScoresForDifficulty(pendingScore.difficultyId, scores);
+      const score = { ...pendingScore, name: cleanName, time: Date.now() };
+      const difficultyId = score.difficultyId;
+      const localScores = loadLeaderboards()[difficultyId] || [];
+      const optimisticScores = sortScores([...localScores, score]);
+
+      // Persist immediately so a Firebase delay or permission error cannot lose the score locally.
+      saveLocalScores(difficultyId, optimisticScores);
       pendingScore = null;
       ui.scoreEntry.classList.remove("show");
-      renderLeaderboard(world.difficultyId);
+      renderLeaderboard(difficultyId);
       ui.restart.focus();
+
+      if (!leaderboardDb) return;
+      try {
+        const snapshot = await leaderboardDb.ref(`leaderboards/${difficultyId}`).once("value");
+        const value = snapshot.val();
+        const remoteScores = Array.isArray(value) ? value : Object.values(value || {});
+        await writeScoresForDifficulty(difficultyId, mergeScores(remoteScores, optimisticScores));
+        renderLeaderboard(difficultyId);
+      } catch (error) {
+        console.warn(`Could not sync the ${difficultyId} leaderboard to Firebase.`, error);
+      }
     }
 
     const upgradePool = [
