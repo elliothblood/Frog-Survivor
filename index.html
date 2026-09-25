@@ -676,6 +676,7 @@
       bossTimer: 55,
       antTimer: 28,
       heartTimer: 7,
+      magnetTimer: 95,
       cameraX: 0,
       cameraY: 0,
       pendingUpgrades: 0,
@@ -1070,6 +1071,7 @@
     const explosions = [];
     const gems = [];
     const hearts = [];
+    const magnets = [];
     const floatText = [];
     const keys = new Set();
     let nextEnemyId = 1;
@@ -3716,6 +3718,27 @@
       });
     }
 
+    function spawnMagnet() {
+      if (magnets.length >= 1) return;
+      const pos = randomScreenPosition(120);
+      magnets.push({
+        x: pos.x,
+        y: pos.y,
+        radius: 15,
+        bob: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function activateMagnet() {
+      let pulled = 0;
+      for (const gem of gems) {
+        if (!isOnScreen(gem, gem.radius + 18)) continue;
+        gem.magnetized = true;
+        pulled += 1;
+      }
+      floatText.push({ x: player.x, y: player.y - 54, text: pulled ? "MAGNET!" : "MAGNET", life: 0.85, heal: true });
+    }
+
     function getMoveVector() {
       let x = 0;
       let y = 0;
@@ -4978,6 +5001,7 @@
       world.bossTimer -= dt;
       world.antTimer -= dt;
       world.heartTimer -= dt;
+      world.magnetTimer -= dt;
       crossbow.timer -= dt;
       wand.timer -= dt;
       sword.timer -= dt;
@@ -5075,6 +5099,11 @@
       if (world.heartTimer <= 0) {
         if (Math.random() < Math.min(0.92, 0.55 * Math.sqrt(boostStats.heartSpawnRate))) spawnHeart();
         world.heartTimer = (9 + Math.random() * 7) / boostStats.heartSpawnRate;
+      }
+
+      if (world.magnetTimer <= 0) {
+        if (Math.random() < 0.55) spawnMagnet();
+        world.magnetTimer = (90 + Math.random() * 70) / boostStats.heartSpawnRate;
       }
 
       if (crossbow.unlocked && crossbow.timer <= 0) {
@@ -5968,9 +5997,10 @@
         const d = distance(player, gem);
         const magnetRange = 150 * boostStats.magnetRange;
         const snapRange = 55 * Math.sqrt(boostStats.magnetRange);
-        if (d < magnetRange) {
+        const magnetized = gem.magnetized === true;
+        if (magnetized || d < magnetRange) {
           const angle = Math.atan2(player.y - gem.y, player.x - gem.x);
-          const pull = d < snapRange ? 690 * Math.sqrt(boostStats.magnetRange) : 310 * Math.sqrt(boostStats.magnetRange);
+          const pull = magnetized ? 1500 : d < snapRange ? 690 * Math.sqrt(boostStats.magnetRange) : 310 * Math.sqrt(boostStats.magnetRange);
           gem.x += Math.cos(angle) * pull * dt;
           gem.y += Math.sin(angle) * pull * dt;
         }
@@ -5984,6 +6014,17 @@
             gainXp(gem.value);
           }
           gems.splice(i, 1);
+        }
+      }
+
+      for (let i = magnets.length - 1; i >= 0; i -= 1) {
+        const magnet = magnets[i];
+        magnet.bob += dt * 4;
+        const d = distance(player, magnet);
+        if (d < player.radius + magnet.radius + 4) {
+          activateMagnet();
+          magnets.splice(i, 1);
+          updateUi();
         }
       }
 
@@ -6135,6 +6176,7 @@
       world.bossTimer = 55;
       world.antTimer = 28;
       world.heartTimer = 7;
+      world.magnetTimer = 95;
       world.pendingUpgrades = 0;
       world.pendingChestUpgrades = 0;
       world.difficulty = 5;
@@ -6458,6 +6500,7 @@
       explosions.length = 0;
       gems.length = 0;
       hearts.length = 0;
+      magnets.length = 0;
       floatText.length = 0;
       enemyById.clear();
       spatial.cells.clear();
@@ -8284,6 +8327,31 @@
       }
     }
 
+    function drawMagnets() {
+      for (const magnet of magnets) {
+        const x = screenX(magnet.x);
+        const y = screenY(magnet.y) + Math.sin(magnet.bob) * 5;
+        const size = magnet.radius;
+        const pulse = 1 + Math.sin(magnet.bob * 1.4) * 0.08;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(pulse, pulse);
+        ctx.shadowColor = "rgba(73, 139, 255, 0.75)";
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = "#f05b70";
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.66, Math.PI * 0.2, Math.PI * 0.8);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#4d8dff";
+        ctx.fillRect(-size * 0.76, -size * 0.5, size * 0.32, size * 0.52);
+        ctx.fillRect(size * 0.44, -size * 0.5, size * 0.32, size * 0.52);
+        ctx.restore();
+      }
+    }
+
     function drawHearts() {
       for (const heart of hearts) {
         const x = screenX(heart.x);
@@ -8411,6 +8479,7 @@
       drawPuddles();
       drawGems();
       drawHearts();
+      drawMagnets();
       drawMines();
       drawEnergyRing();
       drawSkyLasers();
