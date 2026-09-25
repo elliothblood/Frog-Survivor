@@ -4500,7 +4500,7 @@
       if (!reactorWeapon.unlocked) return;
       const margin = 32;
       const visibleTargets = enemies.filter((enemy) => {
-        if (enemy.dead || enemy.isBoss) return false;
+        if (enemy.dead) return false;
         const x = screenX(enemy.x);
         const y = screenY(enemy.y);
         return x >= -enemy.radius - margin
@@ -4527,10 +4527,15 @@
         color: "#b8ff66",
       });
       floatText.push({ x: target.x, y: target.y - target.radius - 10, text: "MELTDOWN", life: 0.75, danger: true });
-      killEnemy(target);
+      if (target.isBoss) {
+        damageEnemy(target, blast.damage);
+        if (target.hp <= 0) killEnemy(target);
+      } else {
+        killEnemy(target);
+      }
 
       for (const enemy of nearbyEnemies(blast.x, blast.y, blast.radius + 42)) {
-        if (enemy.dead) continue;
+        if (enemy.dead || enemy === target) continue;
         const hitRange = blast.radius + enemy.radius;
         if (distanceSq(enemy, blast) < hitRange * hitRange) {
           damageEnemy(enemy, blast.damage);
@@ -6008,9 +6013,10 @@
             floatText.push({ x: player.x, y: player.y - 50, text: "CURED", life: 0.75, heal: true });
           }
           if (boostStats.heartMaxChance > 0 && Math.random() < boostStats.heartMaxChance) {
-            player.maxHp += 5;
-            player.hp = Math.min(player.maxHp, player.hp + 5);
-            floatText.push({ x: player.x, y: player.y - 68, text: "+MAX", life: 0.75, heal: true });
+            const maxHealthGain = 3 + Math.floor(Math.random() * 8);
+            player.maxHp += maxHealthGain;
+            player.hp = Math.min(player.maxHp, player.hp + maxHealthGain);
+            floatText.push({ x: player.x, y: player.y - 68, text: `+MAX HP ${maxHealthGain}`, life: 0.75, heal: true });
           }
           hearts.splice(i, 1);
           updateUi();
@@ -6418,7 +6424,7 @@
       boostStats.critChance = 0;
       boostStats.heartSpawnRate = 1;
       boostStats.heartHeal = 1;
-      boostStats.heartMaxChance = 0;
+      boostStats.heartMaxChance = 0.01;
       for (const id of supportBoostIds) {
         supportBoosts[id].unlocked = false;
         supportBoosts[id].level = 0;
