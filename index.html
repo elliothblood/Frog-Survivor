@@ -3736,6 +3736,10 @@
         gem.magnetized = true;
         pulled += 1;
       }
+      for (const heart of hearts) {
+        if (!isOnScreen(heart, heart.radius + 18)) continue;
+        heart.magnetized = true;
+      }
       floatText.push({ x: player.x, y: player.y - 54, text: pulled ? "MAGNET!" : "MAGNET", life: 0.85, heal: true });
     }
 
@@ -6034,9 +6038,10 @@
         const d = distance(player, heart);
         const heartMagnetRange = 115 * boostStats.magnetRange;
         const heartSnapRange = 45 * Math.sqrt(boostStats.magnetRange);
-        if (d < heartMagnetRange) {
+        const magnetized = heart.magnetized === true;
+        if (magnetized || d < heartMagnetRange) {
           const angle = Math.atan2(player.y - heart.y, player.x - heart.x);
-          const pull = d < heartSnapRange ? 560 * Math.sqrt(boostStats.magnetRange) : 220 * Math.sqrt(boostStats.magnetRange);
+          const pull = magnetized ? 1400 : d < heartSnapRange ? 560 * Math.sqrt(boostStats.magnetRange) : 220 * Math.sqrt(boostStats.magnetRange);
           heart.x += Math.cos(angle) * pull * dt;
           heart.y += Math.sin(angle) * pull * dt;
         }
