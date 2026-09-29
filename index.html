@@ -117,6 +117,116 @@
       text-align: right;
     }
 
+    .pause-button {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(244, 242, 235, 0.3);
+      border-radius: 8px;
+      background: rgba(10, 13, 14, 0.72);
+      color: #f4f2eb;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+      cursor: pointer;
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    .pause-button[hidden] {
+      display: none;
+    }
+
+    .pause-button:hover,
+    .pause-button:focus-visible {
+      outline: 0;
+      border-color: #e9ce5d;
+      background: rgba(38, 56, 49, 0.94);
+    }
+
+    .pause-icon {
+      display: flex;
+      gap: 5px;
+      height: 17px;
+    }
+
+    .pause-icon span {
+      display: block;
+      width: 5px;
+      height: 17px;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .pause-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(5, 8, 9, 0.68);
+      pointer-events: auto;
+    }
+
+    .pause-menu.show {
+      display: flex;
+    }
+
+    .pause-panel {
+      width: min(380px, 100%);
+      padding: 24px;
+      border: 1px solid rgba(244, 242, 235, 0.24);
+      border-radius: 8px;
+      background: rgba(20, 27, 26, 0.97);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    .pause-panel h1 {
+      margin: 0 0 6px;
+      font-size: 32px;
+    }
+
+    .pause-panel p {
+      margin: 0 0 20px;
+      color: #cfd8c8;
+    }
+
+    .pause-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pause-action {
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid rgba(244, 242, 235, 0.2);
+      border-radius: 8px;
+      background: #e9ce5d;
+      color: #16211d;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .pause-action:hover,
+    .pause-action:focus-visible {
+      outline: 0;
+      border-color: #f8faef;
+      filter: brightness(1.08);
+    }
+
+    .pause-action.quit {
+      background: #b94d4d;
+      color: #fff7f2;
+    }
+
     .xp-wrap {
       position: absolute;
       left: max(16px, env(safe-area-inset-left));
@@ -444,6 +554,11 @@
         grid-template-columns: 1fr;
       }
 
+      .pause-button {
+        top: 10px;
+        right: 10px;
+      }
+
       .touch-stick {
         display: block;
       }
@@ -505,6 +620,21 @@
     </div>
 
     <div class="touch-stick" id="touchStick"></div>
+  </div>
+
+  <button class="pause-button" id="pauseButton" type="button" aria-label="Pause game" title="Pause game" hidden>
+    <span class="pause-icon" aria-hidden="true"><span></span><span></span></span>
+  </button>
+
+  <div class="pause-menu" id="pauseMenu" aria-hidden="true">
+    <div class="pause-panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <h1 id="pauseTitle">Paused</h1>
+      <p>What would you like to do?</p>
+      <div class="pause-actions">
+        <button class="pause-action" id="resumeButton" type="button">Continue</button>
+        <button class="pause-action quit" id="quitButton" type="button">Quit run</button>
+      </div>
+    </div>
   </div>
 
   <div class="level-up" id="levelUp">
@@ -656,6 +786,10 @@
       choiceLeaderboardTitle: document.querySelector("#choiceLeaderboardTitle"),
       choiceLeaderboardList: document.querySelector("#choiceLeaderboardList"),
       touchStick: document.querySelector("#touchStick"),
+      pauseButton: document.querySelector("#pauseButton"),
+      pauseMenu: document.querySelector("#pauseMenu"),
+      resumeButton: document.querySelector("#resumeButton"),
+      quitButton: document.querySelector("#quitButton"),
       gameOver: document.querySelector("#gameOver"),
       runSummary: document.querySelector("#runSummary"),
       scoreEntry: document.querySelector("#scoreEntry"),
@@ -671,6 +805,7 @@
       time: 0,
       paused: false,
       ended: false,
+      runStarted: false,
       spawnTimer: 0,
       spawnEvery: 0.9,
       bossTimer: 55,
@@ -4918,6 +5053,7 @@
       if (choosingChest) world.pendingChestUpgrades = Math.max(0, world.pendingChestUpgrades - 1);
       world.paused = true;
       ui.levelUp.classList.add("show");
+      syncPauseButton();
       ui.choicePanel.classList.remove("difficulty-mode");
       ui.choiceLeaderboard.hidden = true;
       ui.upgradeGrid.innerHTML = "";
@@ -4982,6 +5118,7 @@
             if (isBoostWeapon(upgrade.weapon)) supportBoosts[upgrade.weapon].level += 1;
           }
           ui.levelUp.classList.remove("show");
+          syncPauseButton();
           if (world.pendingUpgrades > 0) {
             openUpgradeChoice();
           } else {
@@ -6077,9 +6214,40 @@
       }
     }
 
+    function syncPauseButton() {
+      ui.pauseButton.hidden = !world.runStarted || world.ended || ui.levelUp.classList.contains("show");
+    }
+
+    function closePauseMenu() {
+      ui.pauseMenu.classList.remove("show");
+      ui.pauseMenu.setAttribute("aria-hidden", "true");
+    }
+
+    function openPauseMenu() {
+      if (!world.runStarted || world.ended || ui.levelUp.classList.contains("show")) return;
+      world.paused = true;
+      ui.pauseMenu.classList.add("show");
+      ui.pauseMenu.setAttribute("aria-hidden", "false");
+      ui.resumeButton.focus();
+    }
+
+    function resumeRun() {
+      closePauseMenu();
+      if (!world.ended) world.paused = false;
+    }
+
+    function quitRun() {
+      closePauseMenu();
+      player.hp = 0;
+      endRun();
+    }
+
     async function endRun() {
+      world.runStarted = false;
       world.ended = true;
       world.paused = true;
+      closePauseMenu();
+      syncPauseButton();
       ui.scoreEntry.classList.remove("show");
       pendingScore = null;
       const boostSummary = supportBoostIds
@@ -6109,6 +6277,8 @@
     function beginRun() {
       const tuning = difficultyTuning();
       world.paused = false;
+      world.runStarted = true;
+      syncPauseButton();
       world.spawnTimer = 0;
       world.bossTimer = (55 + Math.max(0, 5 - world.difficulty) * 8) * tuning.bossInterval;
       world.antTimer = (28 + Math.max(0, 5 - world.difficulty) * 5) * tuning.antInterval;
@@ -6175,6 +6345,9 @@
     function restartRun() {
       world.time = 0;
       world.paused = true;
+      world.runStarted = false;
+      closePauseMenu();
+      syncPauseButton();
       world.ended = false;
       world.spawnTimer = 0;
       world.spawnEvery = 0.9;
@@ -8545,6 +8718,9 @@
 
     canvas.addEventListener("pointerup", endPointer);
     canvas.addEventListener("pointercancel", endPointer);
+    ui.pauseButton.addEventListener("click", openPauseMenu);
+    ui.resumeButton.addEventListener("click", resumeRun);
+    ui.quitButton.addEventListener("click", quitRun);
     ui.restart.addEventListener("click", restartRun);
     ui.scoreEntry.addEventListener("submit", (event) => {
       event.preventDefault();
