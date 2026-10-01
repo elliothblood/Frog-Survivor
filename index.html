@@ -495,6 +495,28 @@
       pointer-events: none;
     }
 
+    .skip-upgrade {
+      width: 100%;
+      min-height: 40px;
+      margin-top: 12px;
+      padding: 0 14px;
+      border: 1px solid rgba(244, 242, 235, 0.2);
+      border-radius: 8px;
+      background: rgba(10, 13, 14, 0.42);
+      color: #dce1d5;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .skip-upgrade:hover,
+    .skip-upgrade:focus-visible {
+      outline: 0;
+      border-color: #e9ce5d;
+      background: #263831;
+      color: #f8faef;
+    }
+
     .touch-stick::after {
       content: "";
       position: absolute;
@@ -642,6 +664,7 @@
       <h1 id="upgradeTitle">Choose an upgrade</h1>
       <p id="upgradeSubtitle">The world pauses while you sharpen the build.</p>
       <div class="upgrade-grid" id="upgradeGrid"></div>
+      <button class="skip-upgrade" id="skipUpgrade" type="button" hidden>Skip upgrade</button>
       <div class="leaderboard choice-leaderboard" id="choiceLeaderboard" hidden>
         <h2 id="choiceLeaderboardTitle">Leaderboard</h2>
         <ol id="choiceLeaderboardList"></ol>
@@ -782,6 +805,7 @@
       upgradeTitle: document.querySelector("#upgradeTitle"),
       upgradeSubtitle: document.querySelector("#upgradeSubtitle"),
       upgradeGrid: document.querySelector("#upgradeGrid"),
+      skipUpgrade: document.querySelector("#skipUpgrade"),
       choiceLeaderboard: document.querySelector("#choiceLeaderboard"),
       choiceLeaderboardTitle: document.querySelector("#choiceLeaderboardTitle"),
       choiceLeaderboardList: document.querySelector("#choiceLeaderboardList"),
@@ -5047,6 +5071,22 @@
       updateUi();
     }
 
+    function skipUpgradeChoice(choosingChest) {
+      const maxHealthGain = Math.floor(Math.random() * (choosingChest ? 9 : 11));
+      player.maxHp += maxHealthGain;
+      player.hp = Math.min(player.maxHp, player.hp + maxHealthGain);
+      floatText.push({ x: player.x, y: player.y - 54, text: `SKIPPED +${maxHealthGain} MAX HP`, life: 0.85, heal: true });
+      ui.skipUpgrade.hidden = true;
+      ui.levelUp.classList.remove("show");
+      syncPauseButton();
+      if (world.pendingUpgrades > 0) {
+        openUpgradeChoice();
+      } else {
+        world.paused = false;
+      }
+      updateUi();
+    }
+
     function openUpgradeChoice() {
       const choosingChest = world.pendingChestUpgrades > 0;
       world.pendingUpgrades = Math.max(0, world.pendingUpgrades - 1);
@@ -5064,6 +5104,9 @@
         : choosingChest
           ? "The treasure chest grants a free upgrade."
         : "The world pauses while you sharpen the build.";
+      ui.skipUpgrade.hidden = false;
+      ui.skipUpgrade.textContent = choosingChest ? "Skip chest upgrade" : "Skip upgrade";
+      ui.skipUpgrade.onclick = () => skipUpgradeChoice(choosingChest);
 
       const canAddWeapon = ownedWeaponCount() < weaponSlotLimit();
       const canAddBoost = ownedBoostCount() < boostSlotLimit();
@@ -5117,6 +5160,7 @@
             if (upgrade.weapon === "potion") healingPotion.level += 1;
             if (isBoostWeapon(upgrade.weapon)) supportBoosts[upgrade.weapon].level += 1;
           }
+          ui.skipUpgrade.hidden = true;
           ui.levelUp.classList.remove("show");
           syncPauseButton();
           if (world.pendingUpgrades > 0) {
@@ -6293,6 +6337,8 @@
       ui.choicePanel.classList.add("difficulty-mode");
       ui.upgradeGrid.innerHTML = "";
       ui.choiceLeaderboard.hidden = true;
+      ui.skipUpgrade.hidden = true;
+      ui.skipUpgrade.onclick = null;
       ui.upgradeTitle.textContent = "Choose difficulty";
       ui.upgradeSubtitle.textContent = "M toggles Mastery: one weapon, one boost, five starter choices.";
 
@@ -6347,6 +6393,7 @@
       world.paused = true;
       world.runStarted = false;
       closePauseMenu();
+      ui.skipUpgrade.hidden = true;
       syncPauseButton();
       world.ended = false;
       world.spawnTimer = 0;
